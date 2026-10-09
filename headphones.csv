@@ -1,0 +1,16 @@
+id,category,name,brand,price_inr,rating,ram_gb,storage_gb,battery_hours,weight_kg,screen_in,camera_mp,noise_cancelling,processor,gpu,use_case
+H01,headphones,WH-CH520,Sony,4490,4.3,,,50,0.147,,,no,,,travel|everyday
+H02,headphones,WH-CH720N,Sony,9990,4.5,,,35,0.192,,,yes,,,travel|office|everyday
+H03,headphones,WH-1000XM5,Sony,26990,4.7,,,30,0.25,,,yes,,,travel|office|creative
+H04,headphones,QuietComfort Ultra,Bose,35900,4.7,,,24,0.25,,,yes,,,travel|office|creative
+H05,headphones,QuietComfort Headphones,Bose,27900,4.6,,,24,0.24,,,yes,,,travel|office|everyday
+H06,headphones,QuietComfort Earbuds II,Bose,19900,4.5,,,6,0.017,,,yes,,,travel|workout
+H07,headphones,AirPods Pro 2,Apple,24900,4.7,,,6,0.0053,,,yes,,,travel|workout|everyday
+H08,headphones,AirPods Max,Apple,59900,4.6,,,20,0.386,,,yes,,,travel|office|creative
+H09,headphones,Beats Studio Pro,Beats,29900,4.4,,,40,0.26,,,yes,,,travel|everyday|workout
+H10,headphones,Soundcore Space One,Anker,8999,4.4,,,40,0.265,,,yes,,,travel|office
+H11,headphones,Soundcore Life Q30,Anker,6999,4.3,,,40,0.26,,,yes,,,travel|office|everyday
+H12,headphones,JBL Tune 770NC,JBL,7999,4.4,,,44,0.232,,,yes,,,travel|office|everyday
+H13,headphones,Live 770NC,JBL,12999,4.5,,,50,0.256,,,yes,,,travel|office|creative
+H14,headphones,Crusher Evo,Skullcandy,14999,4.3,,,40,0.312,,,no,,,everyday|travel
+H15,headphones,Elite 10,Jabra,22999,4.5,,,6,0.0058,,,yes,,,travel|workout|office

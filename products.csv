@@ -1,0 +1,46 @@
+id,category,name,brand,price_inr,rating,ram_gb,storage_gb,battery_hours,weight_kg,screen_in,camera_mp,noise_cancelling,processor,gpu,use_case
+L01,laptop,IdeaPad Slim 3 15,Lenovo,42990,4.2,8,512,7,1.62,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
+L02,laptop,IdeaPad Slim 5 14,Lenovo,67990,4.4,16,512,10,1.46,14,2,,Intel Core i5-13420H,Intel UHD,student|office|programming|travel
+L03,laptop,ThinkPad E14 Gen 5,Lenovo,84990,4.5,16,512,9,1.59,14,2,,Intel Core i5-1335U,Intel Iris Xe,office|programming
+L04,laptop,LOQ 15 Gaming,Lenovo,89990,4.5,16,512,6,2.4,15.6,1,,AMD Ryzen 7 7840HS,NVIDIA GeForce RTX 4050,gaming|programming
+L05,laptop,Vivobook 15,ASUS,45990,4.2,8,512,7,1.7,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
+L06,laptop,Zenbook 14 OLED,ASUS,99990,4.6,16,512,12,1.39,14,2,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
+L07,laptop,TUF Gaming A15,ASUS,109990,4.6,16,1024,7,2.2,15.6,1,,AMD Ryzen 7 7735HS,NVIDIA GeForce RTX 4060,gaming|programming
+L08,laptop,Inspiron 15,Dell,51990,4.1,8,512,8,1.65,15.6,1,,Intel Core i5-1235U,Intel Iris Xe,student|office|everyday
+L09,laptop,Latitude 5450,Dell,104990,4.4,16,512,10,1.4,14,2,,Intel Core Ultra 5 125U,Intel integrated,office|programming|travel
+L10,laptop,Victus 15,HP,79990,4.4,16,512,6,2.29,15.6,1,,AMD Ryzen 5 8645HS,NVIDIA GeForce RTX 4050,gaming|programming
+L11,laptop,Pavilion Plus 14,HP,89990,4.5,16,512,9,1.44,14,5,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
+L12,laptop,15s-eq2144AU,HP,38990,4.1,8,512,7,1.69,15.6,1,,AMD Ryzen 5 5500U,AMD Radeon Graphics,student|everyday
+L13,laptop,MacBook Air 13 M2,Apple,99900,4.7,8,256,15,1.24,13.6,2,,Apple M2,Apple 8-core GPU,office|creative|travel|programming
+L14,laptop,MacBook Air 13 M3,Apple,114900,4.8,16,512,15,1.24,13.6,2,,Apple M3,Apple 10-core GPU,office|creative|travel|programming
+L15,laptop,Nitro V 15,Acer,84990,4.4,16,512,6,2.1,15.6,1,,Intel Core i5-13420H,NVIDIA GeForce RTX 4050,gaming|programming
+P01,smartphone,Galaxy A15 5G,Samsung,17999,4.2,8,128,12,0.2,6.5,50,,MediaTek Dimensity 6100+,ARM Mali-G57,everyday|student
+P02,smartphone,Galaxy A35 5G,Samsung,28999,4.4,8,128,14,0.209,6.6,50,,Samsung Exynos 1380,ARM Mali-G68,everyday|photography
+P03,smartphone,Galaxy S24 FE,Samsung,59999,4.5,8,256,13,0.213,6.7,50,,Samsung Exynos 2400e,Xclipse 940,photography|gaming|everyday
+P04,smartphone,Galaxy S24 Ultra,Samsung,129999,4.7,12,256,15,0.232,6.8,200,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday
+P05,smartphone,Redmi Note 13 5G,Xiaomi,17999,4.2,8,256,13,0.174,6.67,108,,MediaTek Dimensity 6080,ARM Mali-G57,everyday|student|photography
+P06,smartphone,Redmi Note 13 Pro+ 5G,Xiaomi,31999,4.5,12,256,14,0.204,6.67,200,,MediaTek Dimensity 7200 Ultra,ARM Mali-G610,photography|gaming|everyday
+P07,smartphone,Xiaomi 14,Xiaomi,69999,4.6,12,512,13,0.193,6.36,50,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday
+P08,smartphone,iPhone 15,Apple,69900,4.6,6,128,15,0.171,6.1,48,,Apple A16 Bionic,Apple 5-core GPU,photography|creative|everyday
+P09,smartphone,iPhone 15 Pro,Apple,134900,4.7,8,256,14,0.187,6.1,48,,Apple A17 Pro,Apple 6-core GPU,photography|creative|gaming
+P10,smartphone,iPhone 16,Apple,79900,4.7,8,128,17,0.17,6.1,48,,Apple A18,Apple 5-core GPU,photography|creative|everyday
+P11,smartphone,Pixel 8a,Google,52999,4.5,8,128,13,0.188,6.1,64,,Google Tensor G3,Arm Mali-G715,photography|everyday
+P12,smartphone,Pixel 8 Pro,Google,106999,4.6,12,256,14,0.213,6.7,50,,Google Tensor G3,Arm Mali-G715,photography|creative|everyday
+P13,smartphone,OnePlus Nord CE4,OnePlus,24999,4.4,8,128,17,0.186,6.7,50,,Qualcomm Snapdragon 7 Gen 3,Adreno 720,everyday|student|gaming
+P14,smartphone,OnePlus 12R,OnePlus,39999,4.5,16,256,18,0.207,6.78,50,,Qualcomm Snapdragon 8 Gen 2,Adreno 740,gaming|everyday|photography
+P15,smartphone,Nothing Phone (2a),Nothing,23999,4.3,8,128,14,0.19,6.7,50,,MediaTek Dimensity 7200 Pro,Arm Mali-G610,everyday|student
+H01,headphones,WH-CH520,Sony,4490,4.3,,,50,0.147,,,no,,,travel|everyday
+H02,headphones,WH-CH720N,Sony,9990,4.5,,,35,0.192,,,yes,,,travel|office|everyday
+H03,headphones,WH-1000XM5,Sony,26990,4.7,,,30,0.25,,,yes,,,travel|office|creative
+H04,headphones,QuietComfort Ultra,Bose,35900,4.7,,,24,0.25,,,yes,,,travel|office|creative
+H05,headphones,QuietComfort Headphones,Bose,27900,4.6,,,24,0.24,,,yes,,,travel|office|everyday
+H06,headphones,QuietComfort Earbuds II,Bose,19900,4.5,,,6,0.017,,,yes,,,travel|workout
+H07,headphones,AirPods Pro 2,Apple,24900,4.7,,,6,0.0053,,,yes,,,travel|workout|everyday
+H08,headphones,AirPods Max,Apple,59900,4.6,,,20,0.386,,,yes,,,travel|office|creative
+H09,headphones,Beats Studio Pro,Beats,29900,4.4,,,40,0.26,,,yes,,,travel|everyday|workout
+H10,headphones,Soundcore Space One,Anker,8999,4.4,,,40,0.265,,,yes,,,travel|office
+H11,headphones,Soundcore Life Q30,Anker,6999,4.3,,,40,0.26,,,yes,,,travel|office|everyday
+H12,headphones,JBL Tune 770NC,JBL,7999,4.4,,,44,0.232,,,yes,,,travel|office|everyday
+H13,headphones,Live 770NC,JBL,12999,4.5,,,50,0.256,,,yes,,,travel|office|creative
+H14,headphones,Crusher Evo,Skullcandy,14999,4.3,,,40,0.312,,,no,,,everyday|travel
+H15,headphones,Elite 10,Jabra,22999,4.5,,,6,0.0058,,,yes,,,travel|workout|office

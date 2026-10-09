@@ -1,0 +1,16 @@
+id,category,name,brand,price_inr,rating,ram_gb,storage_gb,battery_hours,weight_kg,screen_in,camera_mp,noise_cancelling,processor,gpu,use_case
+L01,laptop,IdeaPad Slim 3 15,Lenovo,42990,4.2,8,512,7,1.62,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
+L02,laptop,IdeaPad Slim 5 14,Lenovo,67990,4.4,16,512,10,1.46,14,2,,Intel Core i5-13420H,Intel UHD,student|office|programming|travel
+L03,laptop,ThinkPad E14 Gen 5,Lenovo,84990,4.5,16,512,9,1.59,14,2,,Intel Core i5-1335U,Intel Iris Xe,office|programming
+L04,laptop,LOQ 15 Gaming,Lenovo,89990,4.5,16,512,6,2.4,15.6,1,,AMD Ryzen 7 7840HS,NVIDIA GeForce RTX 4050,gaming|programming
+L05,laptop,Vivobook 15,ASUS,45990,4.2,8,512,7,1.7,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
+L06,laptop,Zenbook 14 OLED,ASUS,99990,4.6,16,512,12,1.39,14,2,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
+L07,laptop,TUF Gaming A15,ASUS,109990,4.6,16,1024,7,2.2,15.6,1,,AMD Ryzen 7 7735HS,NVIDIA GeForce RTX 4060,gaming|programming
+L08,laptop,Inspiron 15,Dell,51990,4.1,8,512,8,1.65,15.6,1,,Intel Core i5-1235U,Intel Iris Xe,student|office|everyday
+L09,laptop,Latitude 5450,Dell,104990,4.4,16,512,10,1.4,14,2,,Intel Core Ultra 5 125U,Intel integrated,office|programming|travel
+L10,laptop,Victus 15,HP,79990,4.4,16,512,6,2.29,15.6,1,,AMD Ryzen 5 8645HS,NVIDIA GeForce RTX 4050,gaming|programming
+L11,laptop,Pavilion Plus 14,HP,89990,4.5,16,512,9,1.44,14,5,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
+L12,laptop,15s-eq2144AU,HP,38990,4.1,8,512,7,1.69,15.6,1,,AMD Ryzen 5 5500U,AMD Radeon Graphics,student|everyday
+L13,laptop,MacBook Air 13 M2,Apple,99900,4.7,8,256,15,1.24,13.6,2,,Apple M2,Apple 8-core GPU,office|creative|travel|programming
+L14,laptop,MacBook Air 13 M3,Apple,114900,4.8,16,512,15,1.24,13.6,2,,Apple M3,Apple 10-core GPU,office|creative|travel|programming
+L15,laptop,Nitro V 15,Acer,84990,4.4,16,512,6,2.1,15.6,1,,Intel Core i5-13420H,NVIDIA GeForce RTX 4050,gaming|programming
