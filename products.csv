@@ -1,46 +1,66 @@
-id,category,name,brand,price_inr,rating,ram_gb,storage_gb,battery_hours,weight_kg,screen_in,camera_mp,noise_cancelling,processor,gpu,use_case
-L01,laptop,IdeaPad Slim 3 15,Lenovo,42990,4.2,8,512,7,1.62,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
-L02,laptop,IdeaPad Slim 5 14,Lenovo,67990,4.4,16,512,10,1.46,14,2,,Intel Core i5-13420H,Intel UHD,student|office|programming|travel
-L03,laptop,ThinkPad E14 Gen 5,Lenovo,84990,4.5,16,512,9,1.59,14,2,,Intel Core i5-1335U,Intel Iris Xe,office|programming
-L04,laptop,LOQ 15 Gaming,Lenovo,89990,4.5,16,512,6,2.4,15.6,1,,AMD Ryzen 7 7840HS,NVIDIA GeForce RTX 4050,gaming|programming
-L05,laptop,Vivobook 15,ASUS,45990,4.2,8,512,7,1.7,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday
-L06,laptop,Zenbook 14 OLED,ASUS,99990,4.6,16,512,12,1.39,14,2,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
-L07,laptop,TUF Gaming A15,ASUS,109990,4.6,16,1024,7,2.2,15.6,1,,AMD Ryzen 7 7735HS,NVIDIA GeForce RTX 4060,gaming|programming
-L08,laptop,Inspiron 15,Dell,51990,4.1,8,512,8,1.65,15.6,1,,Intel Core i5-1235U,Intel Iris Xe,student|office|everyday
-L09,laptop,Latitude 5450,Dell,104990,4.4,16,512,10,1.4,14,2,,Intel Core Ultra 5 125U,Intel integrated,office|programming|travel
-L10,laptop,Victus 15,HP,79990,4.4,16,512,6,2.29,15.6,1,,AMD Ryzen 5 8645HS,NVIDIA GeForce RTX 4050,gaming|programming
-L11,laptop,Pavilion Plus 14,HP,89990,4.5,16,512,9,1.44,14,5,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel
-L12,laptop,15s-eq2144AU,HP,38990,4.1,8,512,7,1.69,15.6,1,,AMD Ryzen 5 5500U,AMD Radeon Graphics,student|everyday
-L13,laptop,MacBook Air 13 M2,Apple,99900,4.7,8,256,15,1.24,13.6,2,,Apple M2,Apple 8-core GPU,office|creative|travel|programming
-L14,laptop,MacBook Air 13 M3,Apple,114900,4.8,16,512,15,1.24,13.6,2,,Apple M3,Apple 10-core GPU,office|creative|travel|programming
-L15,laptop,Nitro V 15,Acer,84990,4.4,16,512,6,2.1,15.6,1,,Intel Core i5-13420H,NVIDIA GeForce RTX 4050,gaming|programming
-P01,smartphone,Galaxy A15 5G,Samsung,17999,4.2,8,128,12,0.2,6.5,50,,MediaTek Dimensity 6100+,ARM Mali-G57,everyday|student
-P02,smartphone,Galaxy A35 5G,Samsung,28999,4.4,8,128,14,0.209,6.6,50,,Samsung Exynos 1380,ARM Mali-G68,everyday|photography
-P03,smartphone,Galaxy S24 FE,Samsung,59999,4.5,8,256,13,0.213,6.7,50,,Samsung Exynos 2400e,Xclipse 940,photography|gaming|everyday
-P04,smartphone,Galaxy S24 Ultra,Samsung,129999,4.7,12,256,15,0.232,6.8,200,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday
-P05,smartphone,Redmi Note 13 5G,Xiaomi,17999,4.2,8,256,13,0.174,6.67,108,,MediaTek Dimensity 6080,ARM Mali-G57,everyday|student|photography
-P06,smartphone,Redmi Note 13 Pro+ 5G,Xiaomi,31999,4.5,12,256,14,0.204,6.67,200,,MediaTek Dimensity 7200 Ultra,ARM Mali-G610,photography|gaming|everyday
-P07,smartphone,Xiaomi 14,Xiaomi,69999,4.6,12,512,13,0.193,6.36,50,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday
-P08,smartphone,iPhone 15,Apple,69900,4.6,6,128,15,0.171,6.1,48,,Apple A16 Bionic,Apple 5-core GPU,photography|creative|everyday
-P09,smartphone,iPhone 15 Pro,Apple,134900,4.7,8,256,14,0.187,6.1,48,,Apple A17 Pro,Apple 6-core GPU,photography|creative|gaming
-P10,smartphone,iPhone 16,Apple,79900,4.7,8,128,17,0.17,6.1,48,,Apple A18,Apple 5-core GPU,photography|creative|everyday
-P11,smartphone,Pixel 8a,Google,52999,4.5,8,128,13,0.188,6.1,64,,Google Tensor G3,Arm Mali-G715,photography|everyday
-P12,smartphone,Pixel 8 Pro,Google,106999,4.6,12,256,14,0.213,6.7,50,,Google Tensor G3,Arm Mali-G715,photography|creative|everyday
-P13,smartphone,OnePlus Nord CE4,OnePlus,24999,4.4,8,128,17,0.186,6.7,50,,Qualcomm Snapdragon 7 Gen 3,Adreno 720,everyday|student|gaming
-P14,smartphone,OnePlus 12R,OnePlus,39999,4.5,16,256,18,0.207,6.78,50,,Qualcomm Snapdragon 8 Gen 2,Adreno 740,gaming|everyday|photography
-P15,smartphone,Nothing Phone (2a),Nothing,23999,4.3,8,128,14,0.19,6.7,50,,MediaTek Dimensity 7200 Pro,Arm Mali-G610,everyday|student
-H01,headphones,WH-CH520,Sony,4490,4.3,,,50,0.147,,,no,,,travel|everyday
-H02,headphones,WH-CH720N,Sony,9990,4.5,,,35,0.192,,,yes,,,travel|office|everyday
-H03,headphones,WH-1000XM5,Sony,26990,4.7,,,30,0.25,,,yes,,,travel|office|creative
-H04,headphones,QuietComfort Ultra,Bose,35900,4.7,,,24,0.25,,,yes,,,travel|office|creative
-H05,headphones,QuietComfort Headphones,Bose,27900,4.6,,,24,0.24,,,yes,,,travel|office|everyday
-H06,headphones,QuietComfort Earbuds II,Bose,19900,4.5,,,6,0.017,,,yes,,,travel|workout
-H07,headphones,AirPods Pro 2,Apple,24900,4.7,,,6,0.0053,,,yes,,,travel|workout|everyday
-H08,headphones,AirPods Max,Apple,59900,4.6,,,20,0.386,,,yes,,,travel|office|creative
-H09,headphones,Beats Studio Pro,Beats,29900,4.4,,,40,0.26,,,yes,,,travel|everyday|workout
-H10,headphones,Soundcore Space One,Anker,8999,4.4,,,40,0.265,,,yes,,,travel|office
-H11,headphones,Soundcore Life Q30,Anker,6999,4.3,,,40,0.26,,,yes,,,travel|office|everyday
-H12,headphones,JBL Tune 770NC,JBL,7999,4.4,,,44,0.232,,,yes,,,travel|office|everyday
-H13,headphones,Live 770NC,JBL,12999,4.5,,,50,0.256,,,yes,,,travel|office|creative
-H14,headphones,Crusher Evo,Skullcandy,14999,4.3,,,40,0.312,,,no,,,everyday|travel
-H15,headphones,Elite 10,Jabra,22999,4.5,,,6,0.0058,,,yes,,,travel|workout|office
+id,category,name,brand,price_inr,rating,ram_gb,storage_gb,battery_hours,weight_kg,screen_in,camera_mp,noise_cancelling,processor,gpu,use_case,specifications,image_ref,data_source
+L01,laptop,IdeaPad Slim 3 15,Lenovo,42990,4.2,8,512,7,1.62,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday,,images/L01.avif,Sample demonstration data
+L02,laptop,IdeaPad Slim 5 14,Lenovo,67990,4.4,16,512,10,1.46,14,2,,Intel Core i5-13420H,Intel UHD,student|office|programming|travel,,,Sample demonstration data
+L03,laptop,ThinkPad E14 Gen 5,Lenovo,84990,4.5,16,512,9,1.59,14,2,,Intel Core i5-1335U,Intel Iris Xe,office|programming,,,Sample demonstration data
+L04,laptop,LOQ 15 Gaming,Lenovo,89990,4.5,16,512,6,2.4,15.6,1,,AMD Ryzen 7 7840HS,NVIDIA GeForce RTX 4050,gaming|programming,,,Sample demonstration data
+L05,laptop,Vivobook 15,ASUS,45990,4.2,8,512,7,1.7,15.6,1,,Intel Core i3-1315U,Intel UHD,student|office|everyday,,,Sample demonstration data
+L06,laptop,Zenbook 14 OLED,ASUS,99990,4.6,16,512,12,1.39,14,2,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel,,,Sample demonstration data
+L07,laptop,TUF Gaming A15,ASUS,109990,4.6,16,1024,7,2.2,15.6,1,,AMD Ryzen 7 7735HS,NVIDIA GeForce RTX 4060,gaming|programming,,,Sample demonstration data
+L08,laptop,Inspiron 15,Dell,51990,4.1,8,512,8,1.65,15.6,1,,Intel Core i5-1235U,Intel Iris Xe,student|office|everyday,,,Sample demonstration data
+L09,laptop,Latitude 5450,Dell,104990,4.4,16,512,10,1.4,14,2,,Intel Core Ultra 5 125U,Intel integrated,office|programming|travel,,,Sample demonstration data
+L10,laptop,Victus 15,HP,79990,4.4,16,512,6,2.29,15.6,1,,AMD Ryzen 5 8645HS,NVIDIA GeForce RTX 4050,gaming|programming,,,Sample demonstration data
+L11,laptop,Pavilion Plus 14,HP,89990,4.5,16,512,9,1.44,14,5,,Intel Core Ultra 5 125H,Intel Arc,office|creative|travel,,,Sample demonstration data
+L12,laptop,15s-eq2144AU,HP,38990,4.1,8,512,7,1.69,15.6,1,,AMD Ryzen 5 5500U,AMD Radeon Graphics,student|everyday,,,Sample demonstration data
+L13,laptop,MacBook Air 13 M2,Apple,99900,4.7,8,256,15,1.24,13.6,2,,Apple M2,Apple 8-core GPU,office|creative|travel|programming,,,Sample demonstration data
+L14,laptop,MacBook Air 13 M3,Apple,114900,4.8,16,512,15,1.24,13.6,2,,Apple M3,Apple 10-core GPU,office|creative|travel|programming,,,Sample demonstration data
+L15,laptop,Nitro V 15,Acer,84990,4.4,16,512,6,2.1,15.6,1,,Intel Core i5-13420H,NVIDIA GeForce RTX 4050,gaming|programming,,,Sample demonstration data
+P01,smartphone,Galaxy A15 5G,Samsung,17999,4.2,8,128,12,0.2,6.5,50,,MediaTek Dimensity 6100+,ARM Mali-G57,everyday|student,,,Sample demonstration data
+P02,smartphone,Galaxy A35 5G,Samsung,28999,4.4,8,128,14,0.209,6.6,50,,Samsung Exynos 1380,ARM Mali-G68,everyday|photography,,,Sample demonstration data
+P03,smartphone,Galaxy S24 FE,Samsung,59999,4.5,8,256,13,0.213,6.7,50,,Samsung Exynos 2400e,Xclipse 940,photography|gaming|everyday,,,Sample demonstration data
+P04,smartphone,Galaxy S24 Ultra,Samsung,129999,4.7,12,256,15,0.232,6.8,200,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday,,,Sample demonstration data
+P05,smartphone,Redmi Note 13 5G,Xiaomi,17999,4.2,8,256,13,0.174,6.67,108,,MediaTek Dimensity 6080,ARM Mali-G57,everyday|student|photography,,,Sample demonstration data
+P06,smartphone,Redmi Note 13 Pro+ 5G,Xiaomi,31999,4.5,12,256,14,0.204,6.67,200,,MediaTek Dimensity 7200 Ultra,ARM Mali-G610,photography|gaming|everyday,,,Sample demonstration data
+P07,smartphone,Xiaomi 14,Xiaomi,69999,4.6,12,512,13,0.193,6.36,50,,Qualcomm Snapdragon 8 Gen 3,Adreno 750,photography|creative|everyday,,,Sample demonstration data
+P08,smartphone,iPhone 15,Apple,69900,4.6,6,128,15,0.171,6.1,48,,Apple A16 Bionic,Apple 5-core GPU,photography|creative|everyday,,,Sample demonstration data
+P09,smartphone,iPhone 15 Pro,Apple,134900,4.7,8,256,14,0.187,6.1,48,,Apple A17 Pro,Apple 6-core GPU,photography|creative|gaming,,,Sample demonstration data
+P10,smartphone,iPhone 16,Apple,79900,4.7,8,128,17,0.17,6.1,48,,Apple A18,Apple 5-core GPU,photography|creative|everyday,,,Sample demonstration data
+P11,smartphone,Pixel 8a,Google,52999,4.5,8,128,13,0.188,6.1,64,,Google Tensor G3,Arm Mali-G715,photography|everyday,,,Sample demonstration data
+P12,smartphone,Pixel 8 Pro,Google,106999,4.6,12,256,14,0.213,6.7,50,,Google Tensor G3,Arm Mali-G715,photography|creative|everyday,,,Sample demonstration data
+P13,smartphone,OnePlus Nord CE4,OnePlus,24999,4.4,8,128,17,0.186,6.7,50,,Qualcomm Snapdragon 7 Gen 3,Adreno 720,everyday|student|gaming,,,Sample demonstration data
+P14,smartphone,OnePlus 12R,OnePlus,39999,4.5,16,256,18,0.207,6.78,50,,Qualcomm Snapdragon 8 Gen 2,Adreno 740,gaming|everyday|photography,,,Sample demonstration data
+P15,smartphone,Nothing Phone (2a),Nothing,23999,4.3,8,128,14,0.19,6.7,50,,MediaTek Dimensity 7200 Pro,Arm Mali-G610,everyday|student,,,Sample demonstration data
+H01,headphones,WH-CH520,Sony,4490,4.3,,,50,0.147,,,no,,,travel|everyday,,,Sample demonstration data
+H02,headphones,WH-CH720N,Sony,9990,4.5,,,35,0.192,,,yes,,,travel|office|everyday,,,Sample demonstration data
+H03,headphones,WH-1000XM5,Sony,26990,4.7,,,30,0.25,,,yes,,,travel|office|creative,,,Sample demonstration data
+H04,headphones,QuietComfort Ultra,Bose,35900,4.7,,,24,0.25,,,yes,,,travel|office|creative,,,Sample demonstration data
+H05,headphones,QuietComfort Headphones,Bose,27900,4.6,,,24,0.24,,,yes,,,travel|office|everyday,,,Sample demonstration data
+H06,headphones,QuietComfort Earbuds II,Bose,19900,4.5,,,6,0.017,,,yes,,,travel|workout,,,Sample demonstration data
+H07,headphones,AirPods Pro 2,Apple,24900,4.7,,,6,0.0053,,,yes,,,travel|workout|everyday,,,Sample demonstration data
+H08,headphones,AirPods Max,Apple,59900,4.6,,,20,0.386,,,yes,,,travel|office|creative,,,Sample demonstration data
+H09,headphones,Beats Studio Pro,Beats,29900,4.4,,,40,0.26,,,yes,,,travel|everyday|workout,,,Sample demonstration data
+H10,headphones,Soundcore Space One,Anker,8999,4.4,,,40,0.265,,,yes,,,travel|office,,,Sample demonstration data
+H11,headphones,Soundcore Life Q30,Anker,6999,4.3,,,40,0.26,,,yes,,,travel|office|everyday,,,Sample demonstration data
+H12,headphones,JBL Tune 770NC,JBL,7999,4.4,,,44,0.232,,,yes,,,travel|office|everyday,,,Sample demonstration data
+H13,headphones,Live 770NC,JBL,12999,4.5,,,50,0.256,,,yes,,,travel|office|creative,,,Sample demonstration data
+H14,headphones,Crusher Evo,Skullcandy,14999,4.3,,,40,0.312,,,no,,,everyday|travel,,,Sample demonstration data
+H15,headphones,Elite 10,Jabra,22999,4.5,,,6,0.0058,,,yes,,,travel|workout|office,,,Sample demonstration data
+W01,smartwatch,Active Fit Watch,Fitbit,4999,4.2,,,7,0.035,1.6,,,,,workout|everyday,AMOLED display; heart-rate tracking; GPS; water resistant,,Sample demonstration data
+T01,tablet,StudyTab 10,Lenovo,18999,4.3,4,128,10,0.48,10.1,,,,,student|everyday,10.1-inch display; Wi-Fi; stylus support,,Sample demonstration data
+M01,monitor,ViewPoint Gaming 27,Acer,16999,4.4,,,,4.2,27,,,,,gaming|office,27-inch IPS; 165 Hz; 1 ms response; DisplayPort and HDMI,,Sample demonstration data
+KM01,keyboard_mouse,Wireless Keyboard and Mouse Combo,Logitech,2499,4.3,,,,0.65,,,,,,office|everyday,2.4 GHz wireless; full-size keyboard; optical mouse,,Sample demonstration data
+SP01,speaker,Compact Bluetooth Speaker,JBL,3499,4.4,,,12,0.55,,,,,,travel|everyday,Bluetooth 5.3; stereo sound; splash resistant,,Sample demonstration data
+CAM01,camera,Entry Mirrorless Camera Kit,Canon,64990,4.5,,,,0.43,24,,,,,creative|photography,24 MP APS-C sensor; interchangeable lens; 4K video,,Sample demonstration data
+GC01,gaming_console,Home Gaming Console,Sony,49990,4.6,,,,3.9,,,,,,gaming,1 TB storage; 4K output; wireless controller included,,Sample demonstration data
+PR01,printer_scanner,Home Ink Tank Printer,HP,13999,4.2,,,,5.1,,,,,,office|student,Color ink tank; print scan copy; Wi-Fi connectivity,,Sample demonstration data
+CA01,computer_accessory,USB-C Multiport Hub,Anker,2299,4.3,,,,0.12,,,,,,office|travel,USB-C; HDMI; USB-A; SD card reader; 100 W pass-through,,Sample demonstration data
+PB01,power_bank_charger,20K Fast Charge Power Bank,Ambrane,1899,4.2,,,,0.42,,,,,,travel|everyday,20000 mAh; USB-C PD; dual output,,Sample demonstration data
+EB01,earbuds,SoundFlow Wireless Earbuds,OnePlus,2999,4.3,,,30,0.045,,,yes,,,travel|workout|everyday,Active noise control; USB-C case; Bluetooth 5.3,,Sample demonstration data
+TV01,smart_tv,Vision 43-inch 4K Smart TV,TCL,24990,4.4,,,,7.2,43,,,,,everyday|creative,43-inch 4K LED; built-in streaming apps; HDMI x3,,Sample demonstration data
+HA01,home_appliance,Smart Air Purifier,Philips,9999,4.3,,,,3.2,,,,,,everyday,HEPA filtration; room air-quality display; sleep mode,,Sample demonstration data
+F01,fashion,Everyday Cotton T-Shirt,Uniqlo,1290,4.2,,,,0.2,,,,,,everyday,100% cotton; regular fit; machine washable,,Sample demonstration data
+SH01,shoes,Everyday Running Sneakers,Decathlon,2499,4.3,,,,0.62,,,,,,workout|travel,Mesh upper; cushioned sole; lace-up fit,,Sample demonstration data
+B01,bags,Campus Laptop Backpack,Wildcraft,1799,4.4,,,,0.58,,,,,,student|travel,22 L capacity; padded laptop sleeve; water-resistant fabric,,Sample demonstration data
+BS01,books_stationery,Study Notebook Set,Camlin,399,4.1,,,,0.8,,,,,,student|office,Pack of 5 ruled notebooks; 200 pages each,,Sample demonstration data
+BC01,beauty_personal_care,Daily Care Starter Set,Nivea,799,4.2,,,,0.45,,,,,,everyday,Face wash; moisturizer; travel-size personal-care items,,Sample demonstration data
+KA01,kitchen_appliance,Compact Air Fryer,Philips,7999,4.4,,,,4.2,,,,,,everyday,4 L capacity; adjustable temperature; timer,,Sample demonstration data
+HL01,home_lifestyle,Adjustable LED Desk Lamp,Portronics,1499,4.2,,,,0.7,,,,,,office|student,Adjustable arm; dimmable light; USB powered,,Sample demonstration data

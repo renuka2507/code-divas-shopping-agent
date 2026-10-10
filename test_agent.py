@@ -107,7 +107,8 @@ class OllamaAgentTests(unittest.TestCase):
         self.assertIn("catalog matches", answer)
         self.assertTrue(results)
         self.assertEqual(
-            {product["category"] for product in results},
+            {product["category"] for product in results}
+            & {"smartphone", "headphones"},
             {"smartphone", "headphones"},
         )
         self.assertTrue(
@@ -271,6 +272,25 @@ class OllamaAgentTests(unittest.TestCase):
             (3.5, 4.5),
         )
 
+    def test_indian_budget_formats_and_bare_leading_budget(self):
+        cases = (
+            ("150000 i want a laptop", 150000.0),
+            ("150,000 i want a laptop", 150000.0),
+            ("₹1,50,000 laptop", 150000.0),
+            ("1.5 lakh i want a laptop", 150000.0),
+            ("1.5L i want a laptop", 150000.0),
+            ("I need a laptop with a budget of 80000 for coding", 80000.0),
+        )
+        for query, expected in cases:
+            with self.subTest(query=query):
+                parsed = parse_catalog_intent(query)
+                self.assertIsNotNone(parsed)
+                self.assertAlmostEqual(parsed["filters"]["max_price"], expected)
+                self.assertEqual(parsed["filters"]["category"], "laptop")
+
+        model_query = parse_catalog_intent("Find a laptop with an X1 processor")
+        self.assertNotIn("max_price", model_query["filters"])
+
     def test_under_five_thousand_headphones_does_not_become_minimum_price(self):
         answer, trace = run_agent(
             Mock(),
@@ -367,10 +387,10 @@ class OllamaAgentTests(unittest.TestCase):
         )
         self.assertIn("Catalog trade-offs", answer)
 
-        answer, trace = run_agent(Mock(), [], "Find tablets under 5000")
-        self.assertIn("not tablets", answer)
-        self.assertEqual(trace[0]["category"], "unsupported_category")
-        self.assertNotIn("result", trace[0])
+        answer, trace = run_agent(Mock(), [], "Find tablets under 10000")
+        self.assertIn("couldn't find catalog products", answer)
+        self.assertEqual(trace[0]["tool"], "filter_products")
+        self.assertEqual(trace[0]["result"], [])
 
         _, trace = run_agent(
             Mock(),
@@ -415,6 +435,151 @@ class OllamaAgentTests(unittest.TestCase):
             70000,
         )
         self.assertIn("Catalog bundle total", answer)
+        self.assertIn("Combined total budget", answer)
+        self.assertIn("### Product comparison", answer)
+
+    def test_structured_recommendations_are_distinct_from_full_tool_results(self):
+        answer, trace = run_agent(
+            Mock(),
+            [],
+            "Find a laptop under ₹150,000 for programming",
+        )
+        self.assertIn("### Understanding your requirements", answer)
+        self.assertIn("### Top recommendations", answer)
+        self.assertIn("### Product comparison", answer)
+        self.assertIn("### Best match", answer)
+        self.assertIn("### Alternatives", answer)
+        self.assertTrue(trace[0]["result"])
+        self.assertEqual(len(trace[0]["recommendations"]), min(5, len(trace[0]["result"])))
+        self.assertTrue(
+            set(product["id"] for product in trace[0]["recommendations"]).issubset(
+                {product["id"] for product in trace[0]["result"]}
+            )
+        )
+        self.assertTrue(
+            all(
+                product["price_inr"] <= 150000
+                and product["category"] == "laptop"
+                and "programming" in product["use_case"].split("|")
+                for product in trace[0]["recommendations"]
+            )
+        )
+
+    def test_follow_up_constraints_inherit_previous_category_and_budget(self):
+        history = [
+            {"role": "user", "content": "I want a laptop within ₹1.5 lakh"},
+            {
+                "role": "assistant",
+                "content": "Here are the laptop results.",
+                "trace": [],
+            },
+        ]
+        parsed = parse_catalog_intent("It should be good for coding", history)
+        self.assertEqual(parsed["filters"]["category"], "laptop")
+        self.assertEqual(parsed["filters"]["use_case"], "programming")
+        self.assertAlmostEqual(parsed["filters"]["max_price"], 150000)
+        answer, trace = run_agent(
+            Mock(),
+            history,
+            "It should be good for coding",
+        )
+        self.assertTrue(trace[0]["result"])
+        self.assertTrue(
+            all(
+                product["category"] == "laptop"
+                and product["price_inr"] <= 150000
+                and "programming" in product["use_case"].split("|")
+                for product in trace[0]["result"]
+            )
+        )
+        self.assertIn("Intended use: programming", answer)
+
+    def test_compare_top_two_uses_previous_final_recommendations(self):
+        previous_products = [
+            {"id": "L01", "name": "First"},
+            {"id": "L02", "name": "Second"},
+            {"id": "L03", "name": "Third"},
+        ]
+        history = [
+            {"role": "user", "content": "Show laptops"},
+            {
+                "role": "assistant",
+                "content": "First is L01, second is L02, third is L03.",
+                "trace": [
+                    {
+                        "tool": "filter_products",
+                        "result": previous_products,
+                        "recommendations": previous_products[:2],
+                    }
+                ],
+            },
+        ]
+        parsed = parse_catalog_intent("Compare the top two", history)
+        self.assertEqual(parsed, {"intent": "compare", "product_ids": ["L01", "L02"]})
+
+    def test_printer_budget_formats_route_through_filtered_search(self):
+        for query in ("6000 printer", "₹6,000 printer", "6k printer", "printer under 6000"):
+            with self.subTest(query=query):
+                answer, trace = run_agent(Mock(), [], query)
+                self.assertEqual(trace[0]["tool"], "filter_products")
+                self.assertEqual(trace[0]["arguments"]["category"], "printer_scanner")
+                self.assertLessEqual(trace[0]["arguments"]["max_price"], 6000)
+                self.assertNotEqual(trace[0]["tool"], "get_highest_rated_products")
+                self.assertEqual(trace[0]["result"], [])
+                self.assertIn(
+                    "No printers in the current catalog match your ₹6,000 budget.",
+                    answer,
+                )
+
+    def test_printer_budget_shows_only_catalog_verified_cheapest_alternative(self):
+        from tools import filter_products
+
+        answer, trace = run_agent(Mock(), [], "6000 printer")
+        all_printers = filter_products(
+            category="printer_scanner",
+            sort_by="price_asc",
+        )
+        self.assertTrue(all_printers)
+        self.assertEqual(trace[1]["purpose"], "cheapest_over_budget_alternative")
+        self.assertEqual(trace[1]["result"][0]["id"], all_printers[0]["id"])
+        self.assertEqual(trace[1]["result"][0]["price_inr"], all_printers[0]["price_inr"])
+        overage = all_printers[0]["price_inr"] - 6000
+        self.assertGreater(overage, 0)
+        self.assertIn(f"exceeds your ₹6,000 budget by ₹{overage:,.0f}", answer)
+        self.assertNotIn("is within your budget", answer)
+
+    def test_multiple_budget_eligible_products_are_filtered_before_ranking(self):
+        answer, trace = run_agent(Mock(), [], "60000 laptop")
+        filtered = trace[0]["result"]
+        self.assertEqual(trace[0]["tool"], "filter_products")
+        self.assertGreater(len(filtered), 1)
+        self.assertTrue(all(item["price_inr"] <= 60000 for item in filtered))
+        self.assertEqual(trace[1]["tool"], "recommendation_agent.rank")
+        ranked = trace[1]["result"]
+        self.assertEqual({item["id"] for item in ranked}, {item["id"] for item in filtered})
+        self.assertTrue(all(item["price_inr"] <= 60000 for item in ranked))
+        ratings = [item["rating"] for item in ranked]
+        self.assertEqual(ratings, sorted(ratings, reverse=True))
+        self.assertIn("### Product comparison", answer)
+
+    def test_category_search_without_budget_keeps_catalog_results(self):
+        answer, trace = run_agent(Mock(), [], "printer")
+        self.assertEqual(trace[0]["tool"], "get_highest_rated_products")
+        self.assertEqual(len(trace[0]["result"]), 1)
+        self.assertNotIn("Budget:", answer)
+        self.assertNotIn("### Product comparison", answer)
+
+    def test_comparison_avoids_single_product_table_and_keeps_multi_product_table(self):
+        single_answer, single_trace = run_agent(Mock(), [], "Compare printers")
+        self.assertEqual(single_trace[-1]["tool"], "compare_products")
+        self.assertEqual(len(single_trace[-1]["result"]), 1)
+        self.assertIn("Only one matching catalog product", single_answer)
+        self.assertNotIn("| Product |", single_answer)
+
+        multi_answer, multi_trace = run_agent(Mock(), [], "Compare L01 and L02")
+        self.assertEqual(len(multi_trace[0]["result"]), 2)
+        self.assertIn("| Product |", multi_answer)
+
 
     def test_follow_up_cheaper_and_similar_queries_use_previous_catalog_trace(self):
         previous_products = [

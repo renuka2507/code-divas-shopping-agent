@@ -6,9 +6,11 @@ import math
 from pathlib import Path
 from typing import Any
 
+from catalog_categories import CATEGORY_BY_SLUG, normalize_category
+
 
 CATALOG_PATH = Path(__file__).with_name("products.csv")
-REQUIRED_COLUMNS = [
+BASE_REQUIRED_COLUMNS = [
     "id",
     "category",
     "name",
@@ -26,6 +28,12 @@ REQUIRED_COLUMNS = [
     "gpu",
     "use_case",
 ]
+REQUIRED_COLUMNS = [
+    *BASE_REQUIRED_COLUMNS,
+    "specifications",
+    "image_ref",
+    "data_source",
+]
 NUMERIC_COLUMNS = {
     "price_inr",
     "rating",
@@ -35,24 +43,6 @@ NUMERIC_COLUMNS = {
     "weight_kg",
     "screen_in",
     "camera_mp",
-}
-CATEGORY_ALIASES = {
-    "computer": "laptop",
-    "computers": "laptop",
-    "notebook": "laptop",
-    "notebooks": "laptop",
-    "laptops": "laptop",
-    "phone": "smartphone",
-    "phones": "smartphone",
-    "mobile": "smartphone",
-    "mobiles": "smartphone",
-    "smartphones": "smartphone",
-    "headphone": "headphones",
-    "headsets": "headphones",
-    "earbud": "headphones",
-    "earbuds": "headphones",
-    "earphone": "headphones",
-    "earphones": "headphones",
 }
 ALLOWED_USE_CASES = {
     "student",
@@ -74,7 +64,7 @@ def _load_products(catalog_path: str | Path = CATALOG_PATH) -> list[dict[str, An
         reader = csv.DictReader(catalog_file)
         if reader.fieldnames is None:
             raise ValueError(f"Product catalog is empty: {path}")
-        missing_columns = set(REQUIRED_COLUMNS) - set(reader.fieldnames)
+        missing_columns = set(BASE_REQUIRED_COLUMNS) - set(reader.fieldnames)
         if missing_columns:
             raise ValueError(
                 "Product catalog is missing required columns: "
@@ -103,15 +93,14 @@ def _load_products(catalog_path: str | Path = CATALOG_PATH) -> list[dict[str, An
                         product[key] = int(number) if number.is_integer() else number
                 else:
                     product[key] = cleaned or None
+            for key in REQUIRED_COLUMNS:
+                product.setdefault(key, None)
             products.append(product)
     return products
 
 
 def _normalize_category(category: str | None) -> str | None:
-    if category is None or not category.strip():
-        return None
-    cleaned = category.strip().lower()
-    return CATEGORY_ALIASES.get(cleaned, cleaned)
+    return normalize_category(category)
 
 
 def _matches_category(product: dict[str, Any], category: str | None) -> bool:
@@ -141,11 +130,7 @@ def search_products(
     for label, value in (("category", category), ("brand", brand), ("use_case", use_case)):
         if value is not None and not isinstance(value, str):
             raise ValueError(f"{label} must be a string")
-    if category and _normalize_category(category) not in {
-        "laptop",
-        "smartphone",
-        "headphones",
-    }:
+    if category and _normalize_category(category) not in CATEGORY_BY_SLUG:
         raise ValueError(f"Unsupported product category: {category}")
     if use_case and use_case.strip().casefold() not in ALLOWED_USE_CASES:
         raise ValueError(f"Unsupported use case: {use_case}")
@@ -160,7 +145,7 @@ def search_products(
             if not isinstance(requested_category, str):
                 raise ValueError("each category must be a string")
             normalized = _normalize_category(requested_category)
-            if normalized not in {"laptop", "smartphone", "headphones"}:
+            if normalized not in CATEGORY_BY_SLUG:
                 raise ValueError(f"Unsupported product category: {requested_category}")
             if normalized in normalized_categories:
                 raise ValueError(f"Duplicate product category: {requested_category}")
@@ -193,7 +178,16 @@ def search_products(
     for product in products:
         searchable = " ".join(
             str(product.get(field) or "")
-            for field in ("id", "category", "name", "brand", "processor", "gpu", "use_case")
+            for field in (
+                "id",
+                "category",
+                "name",
+                "brand",
+                "processor",
+                "gpu",
+                "use_case",
+                "specifications",
+            )
         ).casefold()
         product_brand = str(product.get("brand") or "").casefold()
         cases = str(product.get("use_case") or "").casefold().split("|")
@@ -362,11 +356,7 @@ def filter_products(
         raise ValueError("brand must be a string")
     if category is not None and not isinstance(category, str):
         raise ValueError("category must be a string")
-    if category and _normalize_category(category) not in {
-        "laptop",
-        "smartphone",
-        "headphones",
-    }:
+    if category and _normalize_category(category) not in CATEGORY_BY_SLUG:
         raise ValueError(f"Unsupported product category: {category}")
     normalized_categories = None
     if categories is not None:
@@ -379,7 +369,7 @@ def filter_products(
             if not isinstance(requested_category, str):
                 raise ValueError("each category must be a string")
             normalized = _normalize_category(requested_category)
-            if normalized not in {"laptop", "smartphone", "headphones"}:
+            if normalized not in CATEGORY_BY_SLUG:
                 raise ValueError(f"Unsupported product category: {requested_category}")
             if normalized in normalized_categories:
                 raise ValueError(f"Duplicate product category: {requested_category}")
@@ -501,7 +491,7 @@ def recommend_bundle(
         if not isinstance(category, str):
             raise ValueError("each category must be a string")
         normalized = _normalize_category(category)
-        if normalized not in {"laptop", "smartphone", "headphones"}:
+        if normalized not in CATEGORY_BY_SLUG:
             raise ValueError(f"Unsupported product category: {category}")
         if normalized in normalized_categories:
             raise ValueError(f"Duplicate product category: {category}")
@@ -551,6 +541,8 @@ def get_highest_rated_products(
         if product.get("rating") is not None
         and _matches_category(product, category)
     ]
+    if category and _normalize_category(category) not in CATEGORY_BY_SLUG:
+        raise ValueError(f"Unsupported product category: {category}")
     products.sort(
         key=lambda product: (
             -product["rating"],

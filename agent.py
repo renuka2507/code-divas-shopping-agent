@@ -4,7 +4,9 @@ import inspect
 import json
 import os
 import types
-from typing import Any, Union, get_args, get_origin, get_type_hints
+from contextvars import ContextVar
+from datetime import datetime, timezone
+from typing import Any, Callable, Union, get_args, get_origin, get_type_hints
 
 import httpx
 import ollama
@@ -25,6 +27,7 @@ from tools import (
     SORT_OPTIONS,
 )
 from query_intent import parse_catalog_intent
+from catalog_categories import CATEGORY_METADATA, category_for_product
 
 
 OLLAMA_MODEL = "qwen2.5:3b"
@@ -40,6 +43,76 @@ BUDGET_AGENT = BudgetAgent()
 RECOMMENDATION_AGENT = ProductRecommendationAgent()
 COMPARISON_AGENT = ProductComparisonAgent()
 SUPPORT_AGENT = ShoppingSupportAgent()
+_ACTIVE_EXECUTION_EVENTS: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "active_agent_execution_events",
+    default=None,
+)
+
+
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _invoke_specialist(
+    agent_name: str,
+    tool_name: str,
+    arguments: dict[str, Any],
+    operation: Callable[[], Any],
+    *,
+    record_if: Callable[[Any], bool] | None = None,
+) -> Any:
+    """Run one real specialist action and capture its lifecycle in the active turn."""
+    events = _ACTIVE_EXECUTION_EVENTS.get()
+    if events is None:
+        return operation()
+
+    event: dict[str, Any] = {
+        "agent": agent_name,
+        "tool": tool_name,
+        "arguments": arguments,
+        "status": "running",
+        "started_at": _timestamp(),
+    }
+    events.append(event)
+    try:
+        result = operation()
+    except Exception as error:
+        event.update(
+            {
+                "status": "error",
+                "completed_at": _timestamp(),
+                "error": type(error).__name__,
+            }
+        )
+        raise
+
+    if record_if is not None and not record_if(result):
+        events.remove(event)
+        return result
+
+    products = result if isinstance(result, list) else getattr(result, "products", None)
+    result_preview = (
+        [
+            {
+                key: product.get(key)
+                for key in ("id", "name", "price_inr", "rating")
+                if product.get(key) is not None
+            }
+            for product in products[:5]
+            if isinstance(product, dict)
+        ]
+        if isinstance(products, list)
+        else None
+    )
+    event.update(
+        {
+            "status": "completed",
+            "completed_at": _timestamp(),
+            "result_count": len(products) if isinstance(products, list) else None,
+            "result_preview": result_preview,
+        }
+    )
+    return result
 
 TOOL_FUNCTIONS = {
     "search_products": search_products,
@@ -140,22 +213,50 @@ def _execute_specialist_tool(
 ) -> list[dict[str, Any]]:
     """Route validated model tool calls through their catalog specialist."""
     if tool_name == "search_products":
-        return SEARCH_AGENT.search(**arguments)
+        return _invoke_specialist(
+            "Product Search Agent",
+            tool_name,
+            arguments,
+            lambda: SEARCH_AGENT.search(**arguments),
+        )
     if tool_name == "filter_products":
-        return SEARCH_AGENT.filter(**arguments)
+        return _invoke_specialist(
+            "Product Search Agent",
+            tool_name,
+            arguments,
+            lambda: SEARCH_AGENT.filter(**arguments),
+        )
     if tool_name == "compare_products":
-        return COMPARISON_AGENT.compare(**arguments)
+        return _invoke_specialist(
+            "Product Comparison Agent",
+            tool_name,
+            arguments,
+            lambda: COMPARISON_AGENT.compare(**arguments),
+        )
     if tool_name == "recommend_bundle":
-        return BUDGET_AGENT.recommend_bundle(**arguments).products
+        return _invoke_specialist(
+            "Budget Agent",
+            tool_name,
+            arguments,
+            lambda: BUDGET_AGENT.recommend_bundle(**arguments).products,
+        )
     if tool_name == "get_highest_rated_products":
-        return RECOMMENDATION_AGENT.highest_rated(**arguments)
+        return _invoke_specialist(
+            "Product Recommendation Agent",
+            tool_name,
+            arguments,
+            lambda: RECOMMENDATION_AGENT.highest_rated(**arguments),
+        )
     raise ValueError("The requested catalog specialist is not available.")
 
+SUPPORTED_CATEGORY_TEXT = ", ".join(
+    item["label"] for item in CATEGORY_METADATA
+)
+
 SYSTEM_PROMPT = (
-    "You are Code Divas, a shopping assistant for laptops, smartphones, and headphones. "
+    f"You are Code Divas, a shopping assistant for {SUPPORTED_CATEGORY_TEXT}. "
     "For every shopping request, call catalog tools before making product claims. Infer "
-    "category from natural language: laptop/computer means laptop; phone/mobile means "
-    "smartphone; headset/earbud means headphones. If multiple categories or no category "
+    "category from the category names and aliases in the user's natural language. If multiple categories or no category "
     "is specified, filter across all categories. Use filter_products for budgets, ratings, "
     "brands, use cases, and specifications. Map camera to min_camera_mp, battery to "
     "min_battery_hours, and noise-cancelling to noise_cancelling=true. If the user gives a "
@@ -165,7 +266,11 @@ SYSTEM_PROMPT = (
     "compare_products for known IDs; otherwise search first. Never invent product facts. "
     "Use only catalog tool results, explain recommendations using their facts, and clearly "
     "say if no products match. A tool result may be a limited sample with total_matches; "
-    "do not claim it represents every match."
+    "do not claim it represents every match. Keep the answer concise and structured: "
+    "requirements understood, up to five catalog-backed recommendations, a short "
+    "comparison, a best match based only on the requested priorities and available facts, "
+    "alternatives, and one useful follow-up question if information is missing. Do not "
+    "repeat the same details in multiple sections."
 )
 
 
@@ -320,6 +425,7 @@ def _format_catalog_products(
             ("battery", "battery_hours", " hours"),
             ("camera", "camera_mp", " MP"),
             ("noise cancelling", "noise_cancelling", ""),
+            ("specifications", "specifications", ""),
         ]
         details = [
             f"{label} {product[key]}{unit}"
@@ -332,10 +438,304 @@ def _format_catalog_products(
     return "\n".join(lines)
 
 
+def _missing_relevant_fields(product: dict[str, Any]) -> list[str]:
+    relevant_fields = {
+        "laptop": (
+            ("Processor", "processor"),
+            ("RAM", "ram_gb"),
+            ("Storage", "storage_gb"),
+            ("Battery hours", "battery_hours"),
+        ),
+        "smartphone": (
+            ("Camera (MP)", "camera_mp"),
+            ("Battery hours", "battery_hours"),
+            ("Storage (GB)", "storage_gb"),
+        ),
+        "headphones": (
+            ("Battery hours", "battery_hours"),
+            ("Noise cancelling", "noise_cancelling"),
+        ),
+    }.get(str(product.get("category")), ())
+    return [
+        label
+        for label, key in relevant_fields
+        if product.get(key) in (None, "")
+    ]
+
+
+def _format_shopping_response(
+    filters: dict[str, Any],
+    products: list[dict[str, Any]],
+    *,
+    total: int,
+    combined_budget: bool = False,
+    over_budget_alternatives: list[dict[str, Any]] | None = None,
+) -> str:
+    categories = filters.get("categories") or (
+        [filters["category"]] if filters.get("category") else []
+    )
+    category_text = ", ".join(
+        category_for_product(category)["label"] for category in categories
+    ) or "All categories"
+    lines = [
+        "### Understanding your requirements",
+        f"- Catalog product category: {category_text}",
+    ]
+    low = filters.get("min_price")
+    high = filters.get("max_price")
+    if low is not None or high is not None:
+        budget = (
+            f"₹{low:,.0f}–₹{high:,.0f}"
+            if low is not None and high is not None
+            else f"At least ₹{low:,.0f}"
+            if low is not None
+            else f"Up to ₹{high:,.0f}"
+        )
+        label = "Combined total budget" if combined_budget else "Budget"
+        lines.append(f"- {label}: {budget}")
+    if filters.get("use_case"):
+        lines.append(f"- Intended use: {filters['use_case']}")
+    if filters.get("brand"):
+        lines.append(f"- Brand: {filters['brand']}")
+    if filters.get("min_rating") is not None:
+        lines.append(f"- Minimum rating: {filters['min_rating']}/5")
+
+    if not products:
+        if high is not None and filters.get("category") == "printer_scanner":
+            no_match_message = (
+                f"No printers in the current catalog match your ₹{high:,.0f} budget."
+            )
+        else:
+            no_match_message = (
+                "I couldn't find catalog products matching those requirements. "
+                "Try increasing the budget or relaxing a filter."
+            )
+        lines.extend(
+            [
+                "",
+                "### Results",
+                no_match_message,
+            ]
+        )
+        for alternative in over_budget_alternatives or []:
+            price = alternative.get("price_inr")
+            if price is None or high is None or price <= high:
+                continue
+            overage = price - high
+            lines.append(
+                f"\nThe cheapest catalog alternative is **{alternative.get('name', 'Unnamed product')} "
+                f"({alternative.get('id', 'ID unavailable')})** at ₹{price:,.0f}; "
+                f"it exceeds your ₹{high:,.0f} budget by ₹{overage:,.0f}."
+            )
+        return "\n".join(lines)
+
+    ranked = products[:5]
+    recommendation_heading = (
+        "### Top recommendations (Highest-rated first)"
+        if filters.get("sort_by") == "rating_desc"
+        else "### Lowest-rated recommendations"
+        if filters.get("sort_by") == "rating_asc"
+        else "### Top recommendations"
+    )
+    lines.extend(["", recommendation_heading])
+    for position, product in enumerate(ranked, 1):
+        price_value = product.get("price_inr")
+        rating_value = product.get("rating")
+        price = f"₹{price_value:,.0f}" if price_value is not None else "Price not listed"
+        rating = f"{rating_value}/5" if rating_value is not None else "Rating not listed"
+        specs = [
+            f"{label}: {product[key]}"
+            for label, key in (
+                ("RAM", "ram_gb"),
+                ("Storage", "storage_gb"),
+                ("Processor", "processor"),
+                ("GPU", "gpu"),
+                ("Camera", "camera_mp"),
+                ("Battery hours", "battery_hours"),
+                ("Noise cancelling", "noise_cancelling"),
+                ("Specifications", "specifications"),
+            )
+            if product.get(key) not in (None, "")
+        ]
+        missing = _missing_relevant_fields(product)
+        if missing:
+            specs.append("Not listed: " + ", ".join(missing))
+        fit = []
+        if product.get("category") in categories:
+            category_label = category_for_product(str(product["category"]))["label"].lower()
+            fit.append(f"matches the {category_label} category")
+        if filters.get("use_case") and filters["use_case"] in str(
+            product.get("use_case") or ""
+        ).split("|"):
+            fit.append(f"is catalogued for {filters['use_case']}")
+        if (
+            filters.get("max_price") is not None
+            and product.get("price_inr") is not None
+            and product["price_inr"] <= filters["max_price"]
+        ):
+            fit.append("is within your budget")
+        if not fit:
+            fit.append("is among the top-ranked matching results")
+        detail_text = "; ".join(specs) if specs else "No additional specifications listed"
+        lines.append(
+            f"{position}. **{product.get('name', 'Unnamed product')} "
+            f"({product.get('id', 'ID unavailable')})** — {price} · Rating: {rating}. "
+            f"{detail_text}. It { ' and '.join(fit) }."
+        )
+
+    if len(ranked) > 1:
+        lines.extend(["", "### Product comparison"])
+        lines.append("| Product | Price | Rating | Key catalog details |")
+        lines.append("|---|---:|---:|---|")
+        for product in ranked:
+            price_value = product.get("price_inr")
+            rating_value = product.get("rating")
+            price = f"₹{price_value:,.0f}" if price_value is not None else "Not listed"
+            rating = f"{rating_value}/5" if rating_value is not None else "Not listed"
+            details = [
+                f"{label}: {product[key]}"
+                for label, key in (
+                    ("RAM", "ram_gb"),
+                    ("Storage", "storage_gb"),
+                    ("Camera", "camera_mp"),
+                    ("Battery hours", "battery_hours"),
+                    ("Noise cancelling", "noise_cancelling"),
+                )
+                if product.get(key) not in (None, "")
+            ]
+            missing = _missing_relevant_fields(product)
+            if missing:
+                details.append("Not listed: " + ", ".join(missing))
+            lines.append(
+                f"| {product.get('name', 'Unnamed product')} ({product.get('id', 'N/A')}) "
+                f"| {price} | {rating} | "
+                f"{'; '.join(details) if details else 'Specifications not listed'} |"
+            )
+
+    best = ranked[0]
+    lines.extend(
+        [
+            "",
+            "### Best match",
+            f"**{best.get('name', 'Unnamed product')} ({best.get('id', 'N/A')})** "
+            + "is the top-ranked result among products that passed your stated filters. "
+            + (
+                "The comparison above shows the catalog facts used."
+                if len(ranked) > 1
+                else "The listed price, rating, and specifications are catalog facts."
+            ),
+        ]
+    )
+    if len(ranked) > 1:
+        lines.extend(
+            [
+                "",
+                "### Alternatives",
+                "The other listed products are alternatives; compare their catalog "
+                "prices, ratings, and available specifications for your priorities.",
+            ]
+        )
+    if total > len(ranked):
+        lines.append(f"\nShowing the top {len(ranked)} of {total} matching catalog products.")
+
+    category = categories[0] if len(categories) == 1 else None
+    prompts = {
+        "laptop": "What will you use it for most—programming, study, office, or gaming?",
+        "smartphone": "Do you care most about camera, battery life, or everyday use?",
+        "headphones": "Do you prioritize noise cancellation, battery life, or workout use?",
+    }
+    if category and not filters.get("use_case"):
+        follow_up = prompts.get(
+            category,
+            f"Which features matter most for {category_for_product(category)['label'].lower()}?",
+        )
+        lines.extend(["", f"**To narrow this down:** {follow_up}"])
+    elif not categories:
+        lines.extend(["", "**To narrow this down:** Which category are you shopping for?"])
+    return "\n".join(lines)
+
+
+def _attach_recommendations(
+    trace: list[dict[str, Any]],
+    products: list[dict[str, Any]],
+) -> None:
+    """Keep final customer-facing products separate from intermediate tool results."""
+    if trace:
+        target = trace[-1]
+        if target.get("tool") == "recommendation_agent.rank":
+            target = next(
+                (
+                    entry
+                    for entry in trace
+                    if entry.get("tool") in {"search_products", "filter_products"}
+                    and entry.get("purpose")
+                    != "cheapest_over_budget_alternative"
+                ),
+                target,
+            )
+        target["recommendations"] = products[:5]
+
+
+def _attach_latest_tool_recommendations(trace: list[dict[str, Any]]) -> None:
+    for entry in reversed(trace):
+        result = entry.get("result")
+        if isinstance(result, list) and all(isinstance(item, dict) for item in result):
+            entry["recommendations"] = result[:5]
+            return
+
+
+def _rank_filtered_products(
+    intent: dict[str, Any],
+    filters: dict[str, Any],
+    products: list[dict[str, Any]],
+    trace: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Rank only search results that already satisfy the user's hard filters."""
+    should_rank = bool(
+        filters.get("max_price") is not None and filters.get("category")
+    ) or bool(intent.get("recommendation_requested"))
+    if not products or not should_rank:
+        return products
+    arguments = {
+        "sort_by": filters.get("sort_by", "rating_desc"),
+        "limit": filters.get("limit"),
+    }
+    ranked = _invoke_specialist(
+        "Product Recommendation Agent",
+        "recommendation_agent.rank",
+        arguments,
+        lambda: RECOMMENDATION_AGENT.rank(
+            products,
+            sort_by=arguments["sort_by"],
+            limit=arguments["limit"],
+        ),
+    )
+    trace.append(
+        {
+            "tool": "recommendation_agent.rank",
+            "arguments": arguments,
+            "result": ranked,
+        }
+    )
+    return ranked
+
+
 def _format_comparison(products: list[dict[str, Any]]) -> str:
     if not products:
         return "I couldn't find the requested products in the catalog."
+    if len(products) == 1:
+        product = products[0]
+        price = product.get("price_inr")
+        rating = product.get("rating")
+        return (
+            "Only one matching catalog product is available, so there is no "
+            "side-by-side comparison.\n\n"
+            f"**{product['name']} ({product['id']})** — "
+            f"{f'₹{price:,.0f}' if price is not None else 'Price not listed'} · "
+            f"{f'{rating}/5' if rating is not None else 'Rating not listed'}."
+        )
     columns = (
+        ("Category", "category", "{}"),
         ("Price", "price_inr", "₹{:,}"),
         ("Rating", "rating", "{}/5"),
         ("RAM", "ram_gb", "{} GB"),
@@ -343,6 +743,7 @@ def _format_comparison(products: list[dict[str, Any]]) -> str:
         ("Battery", "battery_hours", "{} hours"),
         ("Weight", "weight_kg", "{} kg"),
         ("Camera", "camera_mp", "{} MP"),
+        ("Specifications", "specifications", "{}"),
     )
     lines = ["Catalog comparison (in your requested order):"]
     lines.append("| Product | " + " | ".join(label for label, _, _ in columns) + " |")
@@ -400,30 +801,50 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
         kind = intent["intent"]
         if kind == "compare":
             ids = intent["product_ids"]
-            products = COMPARISON_AGENT.compare(ids)
+            products = _invoke_specialist(
+                "Product Comparison Agent",
+                "compare_products",
+                {"product_ids": ids},
+                lambda: COMPARISON_AGENT.compare(ids),
+            )
             trace.append({"tool": "compare_products", "arguments": {"product_ids": ids}, "result": products})
+            _attach_recommendations(trace, products)
             return _format_comparison(products), trace
         if kind == "bundle":
             arguments = dict(intent)
             arguments.pop("intent")
-            bundle = BUDGET_AGENT.recommend_bundle(**arguments)
+            bundle = _invoke_specialist(
+                "Budget Agent",
+                "recommend_bundle",
+                arguments,
+                lambda: BUDGET_AGENT.recommend_bundle(**arguments),
+            )
             products = bundle.products
             trace.append({"tool": "recommend_bundle", "arguments": arguments, "result": products})
+            _attach_recommendations(trace, products)
             total = bundle.total_price_inr
             if not products:
                 return "No complete product bundle fits within that total budget.", trace
-            answer = _format_catalog_products(
+            answer = _format_shopping_response(
+                {
+                    "categories": arguments["categories"],
+                    "max_price": arguments["max_total_price"],
+                },
                 products,
-                title=(
-                    f"Catalog bundle total: ₹{total:,.0f} "
-                    f"(₹{bundle.remaining_budget_inr:,.0f} remaining)."
-                ),
+                total=len(products),
+                combined_budget=True,
+            )
+            answer += (
+                f"\n\n**Catalog bundle total:** ₹{total:,.0f}; "
+                f"₹{bundle.remaining_budget_inr:,.0f} remains."
             )
             return answer, trace
         if kind == "unsupported_category":
+            supported_categories = ", ".join(
+                item["label"] for item in CATEGORY_METADATA
+            )
             return (
-                f"The catalog currently includes laptops, smartphones, and headphones, "
-                f"not {intent['category']}.",
+                f"The catalog includes {supported_categories}, not {intent['category']}.",
                 [
                     {
                         "type": "error",
@@ -432,17 +853,62 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                 ],
             )
         if kind == "search":
-            arguments = intent["arguments"]
-            products = SEARCH_AGENT.search(**arguments)
+            arguments = dict(intent["arguments"])
+            arguments.setdefault("sort_by", "rating_desc")
+            products = _invoke_specialist(
+                "Product Search Agent",
+                "search_products",
+                arguments,
+                lambda: SEARCH_AGENT.search(**arguments),
+            )
             trace.append({"tool": "search_products", "arguments": arguments, "result": products})
-            return _format_catalog_products(
+            over_budget_alternatives: list[dict[str, Any]] = []
+            if (
+                arguments.get("max_price") is not None
+                and arguments.get("category") == "printer_scanner"
+                and not products
+            ):
+                alternative_filters = {
+                    "category": arguments["category"],
+                    "sort_by": "price_asc",
+                    "limit": 1,
+                }
+                over_budget_alternatives = _invoke_specialist(
+                    "Product Search Agent",
+                    "filter_products",
+                    alternative_filters,
+                    lambda: SEARCH_AGENT.filter(**alternative_filters),
+                )
+                trace.append(
+                    {
+                        "tool": "filter_products",
+                        "arguments": alternative_filters,
+                        "result": over_budget_alternatives,
+                        "purpose": "cheapest_over_budget_alternative",
+                    }
+                )
+            else:
+                products = _rank_filtered_products(
+                    intent,
+                    arguments,
+                    products,
+                    trace,
+                )
+            _attach_recommendations(trace, products)
+            return _format_shopping_response(
+                arguments,
                 products,
-                title="Catalog product match:",
                 total=len(products),
+                over_budget_alternatives=over_budget_alternatives,
             ), trace
         if kind == "similar":
             arguments = dict(intent["filters"])
-            candidates = SEARCH_AGENT.filter(**arguments)
+            candidates = _invoke_specialist(
+                "Product Search Agent",
+                "filter_products",
+                arguments,
+                lambda: SEARCH_AGENT.filter(**arguments),
+            )
             products = [
                 product
                 for product in candidates
@@ -456,21 +922,36 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                     "similar_to": intent["product_id"],
                 }
             )
-            reference = COMPARISON_AGENT.compare([intent["product_id"]])[0]
-            return _format_catalog_products(
+            reference = _invoke_specialist(
+                "Product Comparison Agent",
+                "compare_products",
+                {"product_ids": [intent["product_id"]]},
+                lambda: COMPARISON_AGENT.compare([intent["product_id"]]),
+            )[0]
+            _attach_recommendations(trace, products)
+            return _format_shopping_response(
+                arguments,
                 products,
-                title=f"Similar catalog alternatives to {reference['name']} ({reference['id']}):",
+                total=len(products),
             ), trace
 
         filters = dict(intent.get("filters", {}))
+        if kind != "compare_best":
+            filters.setdefault("sort_by", "rating_desc")
         if kind == "compare_best":
             categories = filters.pop("categories", [])
             candidates = []
             for category in categories:
                 category_filters = dict(filters)
                 category_filters["category"] = category
+                category_filters.setdefault("sort_by", "rating_desc")
                 category_filters["limit"] = 2 if len(categories) == 1 else 1
-                matches = SEARCH_AGENT.filter(**category_filters)
+                matches = _invoke_specialist(
+                    "Product Search Agent",
+                    "filter_products",
+                    category_filters,
+                    lambda: SEARCH_AGENT.filter(**category_filters),
+                )
                 candidates.extend(matches)
                 trace.append(
                     {
@@ -480,7 +961,14 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                     }
                 )
             products = (
-                COMPARISON_AGENT.compare([product["id"] for product in candidates])
+                _invoke_specialist(
+                    "Product Comparison Agent",
+                    "compare_products",
+                    {"product_ids": [product["id"] for product in candidates]},
+                    lambda: COMPARISON_AGENT.compare(
+                        [product["id"] for product in candidates]
+                    ),
+                )
                 if candidates
                 else []
             )
@@ -491,6 +979,7 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                     "result": products,
                 }
             )
+            _attach_recommendations(trace, products)
             return _format_comparison(products), trace
 
         if (
@@ -502,7 +991,12 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                 for key in ("category", "limit")
                 if key in filters
             }
-            products = RECOMMENDATION_AGENT.highest_rated(**arguments)
+            products = _invoke_specialist(
+                "Product Recommendation Agent",
+                "get_highest_rated_products",
+                arguments,
+                lambda: RECOMMENDATION_AGENT.highest_rated(**arguments),
+            )
             trace.append(
                 {
                     "tool": "get_highest_rated_products",
@@ -510,14 +1004,55 @@ def _run_catalog_intent(intent: dict[str, Any]) -> tuple[str, list[dict[str, Any
                     "result": products,
                 }
             )
-            title = "Highest-rated products in the catalog:"
         else:
-            products = SEARCH_AGENT.filter(**filters)
+            products = _invoke_specialist(
+                "Product Search Agent",
+                "filter_products",
+                filters,
+                lambda: SEARCH_AGENT.filter(**filters),
+            )
             trace.append(
                 {"tool": "filter_products", "arguments": filters, "result": products}
             )
-            title = "Catalog products matching your request:"
-        return _format_catalog_products(products, title=title, total=len(products)), trace
+        over_budget_alternatives: list[dict[str, Any]] = []
+        if (
+            filters.get("max_price") is not None
+            and filters.get("category") == "printer_scanner"
+            and not products
+        ):
+            alternative_filters = {
+                "category": filters["category"],
+                "sort_by": "price_asc",
+                "limit": 1,
+            }
+            over_budget_alternatives = _invoke_specialist(
+                "Product Search Agent",
+                "filter_products",
+                alternative_filters,
+                lambda: SEARCH_AGENT.filter(**alternative_filters),
+            )
+            trace.append(
+                {
+                    "tool": "filter_products",
+                    "arguments": alternative_filters,
+                    "result": over_budget_alternatives,
+                    "purpose": "cheapest_over_budget_alternative",
+                }
+            )
+        else:
+            products = _rank_filtered_products(
+                intent,
+                filters,
+                products,
+                trace,
+            )
+        _attach_recommendations(trace, products)
+        return _format_shopping_response(
+            filters,
+            products,
+            total=len(products),
+            over_budget_alternatives=over_budget_alternatives,
+        ), trace
     except (TypeError, ValueError, OSError):
         trace.append(
             {
@@ -587,9 +1122,21 @@ def _run_agent(
     if deterministic_intent is not None:
         return _run_catalog_intent(deterministic_intent)
 
-    support_answer = SUPPORT_AGENT.respond(user_text, messages)
+    support_answer = _invoke_specialist(
+        "Shopping Support Agent",
+        "support_response",
+        {"user_text": user_text},
+        lambda: SUPPORT_AGENT.respond(user_text, messages),
+        record_if=lambda response: response is not None,
+    )
     if support_answer is not None:
-        return support_answer, []
+        return support_answer, [
+            {
+                "type": "agent",
+                "agent": "Shopping Support Agent",
+                "action": "Answered a catalog capability question.",
+            }
+        ]
 
     client = client or create_ollama_client()
     conversation = _make_history(messages, user_text)
@@ -621,6 +1168,7 @@ def _run_agent(
                         "The local model returned no answer. Please rephrase your question.",
                         trace,
                     )
+                _attach_latest_tool_recommendations(trace)
                 if any(
                     entry.get("tool") in TOOL_FUNCTIONS
                     and isinstance(entry.get("result"), list)
@@ -793,7 +1341,69 @@ class ShoppingManagerAgent:
         user_text: str,
     ) -> tuple[str, list[dict[str, Any]]]:
         """Return the assistant answer and specialist execution trace."""
-        return _run_agent(self.client, messages, user_text)
+        if isinstance(user_text, str) and not user_text.strip():
+            return _run_agent(self.client, messages, user_text)
+
+        manager_event: dict[str, Any] = {
+            "agent": "Shopping Manager Agent",
+            "action": "interpret_and_route",
+            "status": "running",
+            "started_at": _timestamp(),
+        }
+        events = [manager_event]
+        token = _ACTIVE_EXECUTION_EVENTS.set(events)
+        try:
+            answer, trace = _run_agent(self.client, messages, user_text)
+        except Exception as error:
+            manager_event.update(
+                {
+                    "status": "error",
+                    "completed_at": _timestamp(),
+                    "error": type(error).__name__,
+                    "result_count": 0,
+                }
+            )
+            answer = (
+                "I couldn't complete that request safely. Please check the request "
+                "and local catalog, then try again."
+            )
+            trace = [{"type": "error", "category": "manager_execution_error"}]
+        else:
+            products: list[Any] = []
+            for entry in reversed(trace):
+                if not isinstance(entry, dict):
+                    continue
+                recommendations = entry.get("recommendations")
+                if isinstance(recommendations, list):
+                    products = recommendations
+                    break
+                result = entry.get("result")
+                if (
+                    isinstance(result, list)
+                    and entry.get("purpose") != "cheapest_over_budget_alternative"
+                ):
+                    products = result
+                    break
+            manager_event.update(
+                {
+                    "status": "completed",
+                    "completed_at": _timestamp(),
+                    "result_count": len(products),
+                }
+            )
+        finally:
+            _ACTIVE_EXECUTION_EVENTS.reset(token)
+
+        if trace:
+            trace[0]["execution_events"] = events
+        else:
+            trace.append(
+                {
+                    "type": "execution_events",
+                    "execution_events": events,
+                }
+            )
+        return answer, trace
 
 
 def run_agent(

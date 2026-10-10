@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from tools import filter_products, get_highest_rated_products
+from tools import _sort_and_limit, filter_products, get_highest_rated_products
 
 
 class ProductRecommendationAgent:
@@ -15,6 +15,16 @@ class ProductRecommendationAgent:
     ) -> list[dict[str, Any]]:
         """Return the highest rated products without requiring a perfect score."""
         return get_highest_rated_products(limit=limit, category=category)
+
+    def rank(
+        self,
+        products: list[dict[str, Any]],
+        *,
+        sort_by: str = "rating_desc",
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Rank an already-filtered candidate set without broadening its constraints."""
+        return _sort_and_limit(list(products), sort_by, limit)
 
     def recommend(self, **filters: Any) -> list[dict[str, Any]]:
         """Apply user constraints, then rank matching products by rating."""

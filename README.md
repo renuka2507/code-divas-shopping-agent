@@ -6,37 +6,69 @@ getting recommendations grounded in the catalog.
 
 ## Features
 
-- 45 sample products: 15 laptops, 15 smartphones, and 15 headphones.
+- 65 sample products: the original 45 laptops, smartphones, and headphones,
+  plus one demonstration product in each of 20 additional categories.
+- 23 categories are defined once in `catalog_categories.py` and drive category
+  aliases, intent detection, navigation labels, and image placeholders.
+- Discover Products includes category cards and a natural-language search field.
 - CSV-backed keyword, category, brand, use-case, price, rating, and specification filters.
 - Deterministic natural-language interpretation for common category, price, rating, use-case, and specification requests.
 - Inclusive ranges and strict "under"/"above" price and rating comparisons.
 - Price/rating sorting, highest- and lowest-rated results, and top-N catalog queries.
 - Catalog-grounded comparison and combined-budget recommendations.
+- Cross-category comparisons and bundles using two or more selected categories.
 - Side-by-side product comparison by ID.
 - Local Ollama-powered natural-language chat using `qwen2.5:3b`.
 - Six cooperating shopping roles: one manager and five catalog specialists for
   search, budgets, recommendations, comparisons, and support.
 - Visible tool trace in the chat to help debug recommendations.
 - Helpful messages for unavailable Ollama service or a missing local model.
+- Up to five final, catalog-backed recommendations with a comparison and best-match explanation.
+- Scrollable conversation history; internal tool results remain in a collapsed debug trace.
+- Product-ID-based local images with validated file formats and category-specific placeholders.
+- Multi-agent console with live catalog/session metrics, timed Ollama status, and trace-backed activity.
+- Product discovery, chat, comparison, budget planning, and agent activity navigation.
+- Soft Powder Blue (`#E6F0FA`) application background.
 - Unit tests for product functions and catalog integrity.
 
-Product information is sample demonstration data. Verify current prices and
-specifications with sellers before purchasing.
+All 65 catalog records are explicitly labeled **Sample demonstration data**.
+Their prices, ratings, brands, and specifications are examples for the
+hackathon demo and are not verified live marketplace listings. Check sellers
+for current product information before purchasing.
+
+The expanded categories include smartwatches and fitness bands; tablets and
+iPads; monitors; keyboards and mice; speakers and soundbars; cameras and
+accessories; gaming consoles and accessories; printers and scanners; computer
+accessories; power banks and chargers; earbuds; smart TVs; home appliances;
+fashion and clothing; shoes and sneakers; bags and backpacks; books and
+stationery; beauty and personal care; kitchen appliances; and home and
+lifestyle products.
+
+The `products.csv` catalog keeps the original 16 fields and adds
+`specifications`, `image_ref`, and `data_source`. Category-specific source CSVs
+for the original three categories retain their original 16-column schema.
 
 ## Project layout
 
 | File | Purpose |
 | --- | --- |
 | `app.py` | Streamlit UI, catalog filters, conversation history, and trace display |
+| `catalog_categories.py` | Canonical category slugs, aliases, display labels, and icons |
 | `agent.py` | Signature-derived tool schemas, validated dispatch, and Ollama fallback |
+| `image_utils.py` | Safe local product-image lookup and category placeholder labels |
+| `console_utils.py` | Trace-derived specialist activity, tool counts, and safe diagnostics |
 | `agents/` | Search, budget, recommendation, comparison, and support specialist classes |
 | `query_intent.py` | Deterministic parsing of supported natural-language catalog queries |
 | `tools.py` | CSV loading, searching, filtering, sorting, and comparison |
 | `laptops.csv`, `phones.csv`, `headphones.csv` | Category catalogs |
 | `products.csv` | Combined catalog used by the app and tools |
+| `test_category_expansion.py` | Expanded-category intent, search, comparison, and bundle tests |
+| `test_app_ui.py` | Offline Streamlit smoke test for category browsing and chat |
 | `test_tools.py` | Automated tests |
 | `test_agent.py` | Offline tests for Ollama availability and tool calling |
 | `test_agents.py` | Offline contracts for specialist agents and manager routing |
+| `test_image_utils.py` | Local image resolution, corrupt/missing image, and placeholder tests |
+| `test_console_utils.py` | Trace-backed activity metrics and diagnostic redaction tests |
 
 Straightforward catalog questions are parsed locally and answered directly from
 CSV-backed tools; this keeps exact budget, rating, sorting, and bundle behavior
@@ -70,13 +102,37 @@ specialists are separate, testable classes with narrow inputs and outputs;
 they share existing deterministic catalog tools and do not each make redundant
 model requests.
 
+The dashboard's Ollama badge probes the local `/api/tags` endpoint with a short
+timeout and caches the result briefly; it does not send an inference request.
+Agent activity cards and the execution timeline read the same per-turn
+execution-event records. Each actual agent call records its start and
+completion timestamps, status, arguments, result count, and safe error type.
+Specialists not invoked for a turn are explicitly labeled as not invoked. The
+comparison and bundle planner pages submit their requests through the existing
+Shopping Manager so their activity and results are recorded in the conversation
+as well.
+
 Price wording is interpreted deliberately: "under/below/less than ₹5,000" is
 strict, while "up to/maximum ₹5,000" includes products priced at ₹5,000. Numeric
 ranges such as "between ₹5,000 and ₹10,000" include both endpoints. Follow-up
 phrases such as "show cheaper options" retain the previous filters only when
 they refer to those previous results; a new unrelated request starts fresh.
 Ambiguous references such as "which is better?" may still require Ollama to
-resolve the conversational context.
+resolve the conversational context. Budget parsing also recognizes Indian
+grouping (for example `₹1,50,000`) and `lakh`/`L` amounts. Recommendation cards
+show only products explicitly selected as final results, not every internal
+search result. Product photos are loaded only from `images/` and must be named
+with their matching catalog ID, such as `L01.jpg`, `P01.webp`, or `W01.png`.
+The current catalog includes a local photo for `L01`; other records use their
+category-specific icon placeholder until a trustworthy local image is added.
+No unverified image URLs are embedded in the catalog. For additional
+categories, add a valid local asset named for the product ID and update its
+`image_ref` cell in `products.csv`.
+Supported formats are PNG, JPEG, WebP, and AVIF. The current workspace includes
+only `images/L01.avif`; other products show a laptop, smartphone, or headphones
+placeholder until a legitimate product-specific local image is added. The app
+does not depend on remote image URLs, so unavailable third-party sites cannot
+slow down product browsing or chat.
 
 ## Install and run
 

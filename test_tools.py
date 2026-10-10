@@ -2,10 +2,12 @@
 
 import csv
 import unittest
-from pathlib import Path
+
+from catalog_categories import CATEGORY_METADATA
 
 from tools import (
     CATALOG_PATH,
+    BASE_REQUIRED_COLUMNS,
     REQUIRED_COLUMNS,
     _load_products,
     compare_products,
@@ -56,8 +58,9 @@ class ProductToolsTests(unittest.TestCase):
                 for row in matches
             )
         )
+        self.assertTrue(filter_products(category="tablet"))
         with self.assertRaises(ValueError):
-            filter_products(category="tablet")
+            filter_products(category="spacecraft")
         with self.assertRaises(ValueError):
             filter_products(use_case="vacation")
 
@@ -86,12 +89,16 @@ class ProductToolsTests(unittest.TestCase):
             search_products(min_rating=5.1)
 
     def test_highest_rated_products_are_sorted_across_catalog(self):
-        products = get_highest_rated_products(limit=45)
-        self.assertEqual(len(products), 45)
-        self.assertEqual(
-            {product["category"] for product in products},
-            {"laptop", "smartphone", "headphones"},
-        )
+        products = get_highest_rated_products(limit=65)
+        self.assertEqual(len(products), 65)
+        self.assertEqual({product["category"] for product in products}, {
+            "laptop", "smartphone", "headphones", "smartwatch", "tablet",
+            "monitor", "keyboard_mouse", "speaker", "camera", "gaming_console",
+            "printer_scanner", "computer_accessory", "power_bank_charger",
+            "earbuds", "smart_tv", "home_appliance", "fashion", "shoes",
+            "bags", "books_stationery", "beauty_personal_care",
+            "kitchen_appliance", "home_lifestyle",
+        })
         ratings = [product["rating"] for product in products]
         self.assertEqual(ratings, sorted(ratings, reverse=True))
         self.assertEqual(
@@ -212,16 +219,19 @@ class ProductToolsTests(unittest.TestCase):
                 "r", newline="", encoding="utf-8"
             ) as category_file:
                 reader = csv.DictReader(category_file)
-                self.assertEqual(reader.fieldnames, REQUIRED_COLUMNS)
+                self.assertEqual(reader.fieldnames, BASE_REQUIRED_COLUMNS)
                 records = list(reader)
             self.assertEqual(len(records), 15)
             self.assertTrue(all(row["id"].startswith(prefix) for row in records))
             self.assertTrue(all(row["category"] == category for row in records))
             source_products.update({row["id"]: row for row in records})
-        self.assertEqual(
-            {row["id"]: row for row in products},
-            source_products,
-        )
+        self.assertEqual(len(products), 65)
+        product_by_id = {row["id"]: row for row in products}
+        for product_id, source_product in source_products.items():
+            self.assertEqual(
+                {key: product_by_id[product_id][key] for key in BASE_REQUIRED_COLUMNS},
+                source_product,
+            )
         allowed_use_cases = {
             "student",
             "office",
@@ -234,9 +244,18 @@ class ProductToolsTests(unittest.TestCase):
             "workout",
         }
         for product in products:
+            self.assertEqual(product["data_source"], "Sample demonstration data")
             self.assertTrue(set(product["use_case"].split("|")) <= allowed_use_cases)
             if product["category"] == "headphones":
                 self.assertIn(product["noise_cancelling"], {"yes", "no"})
+        self.assertEqual(
+            {product["category"] for product in products} - {"laptop", "smartphone", "headphones"},
+            {
+                category["slug"]
+                for category in CATEGORY_METADATA
+                if category["slug"] not in {"laptop", "smartphone", "headphones"}
+            },
+        )
 
     def test_each_source_csv_loads_with_typed_numeric_values(self):
         for filename, expected_category in (

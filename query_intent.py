@@ -7,9 +7,10 @@ from difflib import get_close_matches
 from typing import Any
 
 import tools
+from catalog_categories import CATEGORY_METADATA
 
 
-AMOUNT = r"(?:₹|rs\.?\s*)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k|thousand)?"
+AMOUNT = r"(?:₹|rs\.?\s*)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|lakh|lac|l)?"
 PRICE_RANGE = re.compile(
     rf"\b(?:between|from)\s+{AMOUNT}\s+(?:and|to)\s+{AMOUNT}",
     re.IGNORECASE,
@@ -34,15 +35,28 @@ MAX_RATING_LIMIT = re.compile(
     r"\s+([0-5](?:\.\d+)?)(?![\d.])|<=?\s*([0-5](?:\.\d+)?)(?![\d.]))",
     re.IGNORECASE,
 )
-PRODUCT_ID = re.compile(r"\b[LPH]\d{2}\b", re.IGNORECASE)
+PRODUCT_ID = re.compile(r"\b[A-Z]{1,3}\d{2}\b", re.IGNORECASE)
 
 CATEGORY_PATTERNS = {
-    "laptop": re.compile(r"\b(laptops?|computers?|notebooks?)\b", re.I),
-    "smartphone": re.compile(r"\b(smartphones?|phones?|mobiles?|cellphones?)\b", re.I),
-    "headphones": re.compile(r"\b(headphones?|headsets?|earbuds?|earphones?)\b", re.I),
+    item["slug"]: re.compile(
+        r"(?<!\w)(?:"
+        + "|".join(
+            re.escape(alias)
+            for alias in sorted(
+                {item["slug"], item["label"], *item["aliases"]},
+                key=len,
+                reverse=True,
+            )
+        )
+        + r")(?!\w)",
+        re.IGNORECASE,
+    )
+    for item in CATEGORY_METADATA
 }
 USE_CASE_ALIASES = {
     "college": "student",
+    "study": "student",
+    "studying": "student",
     "students": "student",
     "student": "student",
     "office": "office",
@@ -65,23 +79,23 @@ USE_CASE_ALIASES = {
     "gym": "workout",
 }
 CATEGORY_WORDS = {
-    "laptop": "laptop",
-    "computer": "laptop",
-    "notebook": "laptop",
-    "smartphone": "smartphone",
-    "cellphone": "smartphone",
-    "phone": "smartphone",
-    "mobile": "smartphone",
-    "headphone": "headphones",
-    "headset": "headphones",
-    "earbud": "headphones",
-    "earphone": "headphones",
+    alias: item["slug"]
+    for item in CATEGORY_METADATA
+    for alias in {item["slug"], *item["aliases"]}
+    if " " not in alias
 }
 
 
 def _amount(value: str, suffix: str | None) -> float:
     number = float(value.replace(",", ""))
-    return number * 1000 if suffix and suffix.casefold() in {"k", "thousand"} else number
+    multiplier = {
+        "k": 1_000,
+        "thousand": 1_000,
+        "l": 100_000,
+        "lac": 100_000,
+        "lakh": 100_000,
+    }
+    return number * multiplier.get((suffix or "").casefold(), 1)
 
 
 def _has_rating_context(text: str, match: re.Match[str]) -> bool:
@@ -156,6 +170,40 @@ def _extract_filters(text: str) -> dict[str, Any]:
                 filters[name] = max(current, value)
             else:
                 filters[name] = min(current, value)
+
+    if "max_price" not in filters and "min_price" not in filters:
+        leading_amount = re.match(
+            r"^\s*(₹|rs\.?\s*)?\s*(\d[\d,]*(?:\.\d+)?)\s*"
+            r"(k|thousand|lakh|lac|l)?\b(.*)$",
+            text,
+            re.IGNORECASE,
+        )
+        if leading_amount:
+            currency, number, suffix, remainder = leading_amount.groups()
+            has_request = re.search(
+                r"\b(?:i\s+)?(?:want|need|looking for|find|suggest|recommend|show)\b",
+                remainder,
+                re.IGNORECASE,
+            )
+            has_supported_category = any(
+                pattern.search(remainder) for pattern in CATEGORY_PATTERNS.values()
+            )
+            amount = _amount(number, suffix)
+            looks_like_specification = bool(
+                re.match(
+                    r"\s*(?:gb|mp|kg|hours?|hrs?|inches?|inch|in)\b",
+                    remainder,
+                    re.IGNORECASE,
+                )
+            )
+            if not looks_like_specification and (
+                currency
+                or (
+                    has_supported_category
+                    and (has_request or amount >= 100)
+                )
+            ):
+                filters["max_price"] = amount
 
     rating_range = RATING_RANGE.search(text)
     if rating_range:
@@ -236,35 +284,48 @@ def _category(text: str) -> str | None:
 
 
 def _categories(text: str) -> list[str]:
+    matches = [
+        (match.start(), match.end(), category)
+        for category, pattern in CATEGORY_PATTERNS.items()
+        for match in pattern.finditer(text)
+    ]
     found = {
         category
-        for category, pattern in CATEGORY_PATTERNS.items()
-        if pattern.search(text)
+        for start, end, category in matches
+        if not any(
+            other_category != category
+            and other_start <= start
+            and end <= other_end
+            for other_start, other_end, other_category in matches
+        )
     }
-    for token in re.findall(r"[a-z]+", text.casefold()):
+    for token_match in re.finditer(r"[a-z]+", text.casefold()):
+        if any(
+            start <= token_match.start() and token_match.end() <= end
+            for start, end, _ in matches
+        ):
+            continue
+        token = token_match.group()
         if token in CATEGORY_WORDS:
             found.add(CATEGORY_WORDS[token])
             continue
-        close = get_close_matches(token, CATEGORY_WORDS, n=1, cutoff=0.82)
+        close = get_close_matches(
+            token,
+            [word for word in CATEGORY_WORDS if len(word) >= 5],
+            n=1,
+            cutoff=0.86,
+        )
         if close:
             found.add(CATEGORY_WORDS[close[0]])
-    return [category for category in ("laptop", "smartphone", "headphones") if category in found]
-
-
-def _unsupported_category(text: str, categories: list[str]) -> str | None:
-    if re.search(r"\b(tablets?|smart ?watches?|televisions?|tvs?|cameras?)\b", text, re.I):
-        match = re.search(
-            r"\b(tablets?|smart ?watches?|televisions?|tvs?|cameras?)\b",
-            text,
-            re.I,
-        )
-        if match and match.group(1).casefold().startswith("camera") and (
-            "smartphone" in categories
-            or re.search(r"\b\d+(?:\.\d+)?\s*mp\b|\bcamera (?:spec|quality|resolution)\b", text, re.I)
-        ):
-            return None
-        return match.group(1) if match else None
-    return None
+    if re.search(
+        r"\b(?:good|better|best|high[- ]?resolution|quality)\s+camera\b|"
+        r"\bcamera\s+(?:quality|resolution|spec(?:ifications?)?|mp)\b|"
+        r"\bwith\s+(?:a\s+)?(?:good\s+)?camera\b",
+        text,
+        re.I,
+    ):
+        found.discard("camera")
+    return [item["slug"] for item in CATEGORY_METADATA if item["slug"] in found]
 
 
 def _brand(text: str) -> str | None:
@@ -309,7 +370,8 @@ def _follow_up(text: str) -> bool:
             r"\b(those|these|them|cheaper|more expensive|higher rated|"
             r"higher ratings?|lower rated|sort those|show cheaper|increase the budget|"
             r"raise the budget|increase budget|raise budget|compare the first|first two results|"
-            r"cheaper alternatives|like the (?:first|second|third|last) one)\b",
+            r"cheaper alternatives|like the (?:first|second|third|last) one|"
+            r"it should|it needs|also need|also want|compare the top two)\b",
             text,
             re.IGNORECASE,
         )
@@ -369,9 +431,15 @@ def parse_catalog_intent(
     categories = _categories(text)
     brand = _brand(text)
     use_case = _use_case(text)
+    recommendation_requested = bool(
+        re.search(r"\b(?:recommend(?:ation)?|suggest|best)\b", lowered)
+    )
 
     ids = _comparison_ids(text, messages)
     if re.search(r"\b(compare|comparison|which is better)\b", lowered):
+        if len(ids) < 2 and re.search(r"\b(?:top|first)\s+two\b", lowered):
+            previous_products = _previous_assistant_products(messages)
+            ids = [str(product["id"]) for product in previous_products[:2]]
         if len(ids) >= 2:
             return {"intent": "compare", "product_ids": ids[:4]}
         if categories:
@@ -390,12 +458,9 @@ def parse_catalog_intent(
         re.search(r"\b(bundle|combined|total budget|overall budget)\b", lowered)
         or re.search(rf"\bwithin\s+{AMOUNT}\s+total\b", text, re.IGNORECASE)
     )
-    bundle = bool(
-        bundle_context
-        and re.search(r"\b(laptops?|computers?)\b", lowered)
-        and re.search(r"\b(phones?|smartphones?|mobiles?)\b", lowered)
-        and re.search(r"\b(headphones?|headsets?|earbuds?)\b", lowered)
-    )
+    if bundle_context and not categories and filters.get("max_price") is not None:
+        categories = ["laptop", "smartphone", "headphones"]
+    bundle = bundle_context and len(categories) >= 2
     if bundle and filters.get("max_price") is None:
         budget_after_currency = re.search(
             rf"(?:combined|total|overall)\s+{AMOUNT}\s+budget\b",
@@ -415,7 +480,7 @@ def parse_catalog_intent(
         return {
             "intent": "bundle",
             "max_total_price": filters["max_price"],
-            "categories": ["laptop", "smartphone", "headphones"],
+            "categories": categories,
         }
     if re.search(r"\bwithin (?:my|the) budget\b", lowered):
         previous = _previous_user_query(messages)
@@ -425,10 +490,6 @@ def parse_catalog_intent(
         ):
             return None
 
-    unsupported = _unsupported_category(text, categories)
-    if unsupported:
-        return {"intent": "unsupported_category", "category": unsupported}
-
     highest = bool(
         re.search(r"\b(highest[- ]rated|highest ratings?|top[- ]rated|best[- ]rated)\b", lowered)
     )
@@ -437,14 +498,17 @@ def parse_catalog_intent(
         return {
             "intent": "filter",
             "filters": {
+                **filters,
                 **({"category": category} if category else {}),
+                **({"brand": brand} if brand else {}),
+                **({"use_case": use_case} if use_case else {}),
                 "sort_by": "rating_desc" if highest else "rating_asc",
-                "limit": _top_limit(text, default=5),
+                "limit": filters.get("limit", _top_limit(text, default=5)),
             },
         }
 
     sort_by = None
-    if re.search(r"\b(cheapest|lowest price|sort by price|price ascending|cheaper options)\b", lowered):
+    if re.search(r"\b(cheapest|lowest price|sort(?:ed)? by price|price ascending|cheaper options)\b", lowered):
         sort_by = "price_asc"
     elif re.search(r"\b(most expensive|highest price|price descending)\b", lowered):
         sort_by = "price_desc"
@@ -561,6 +625,7 @@ def parse_catalog_intent(
                 **({"brand": brand} if brand else {}),
                 **filters,
             },
+            "recommendation_requested": recommendation_requested,
         }
 
     query_is_catalog = bool(category or brand or use_case or filters or sort_by)
@@ -573,14 +638,18 @@ def parse_catalog_intent(
             )
             if rating_match:
                 filters["min_rating"] = float(rating_match.group(1))
-        return {"intent": "filter", "filters": filters}
+        return {
+            "intent": "filter",
+            "filters": filters,
+            "recommendation_requested": recommendation_requested,
+        }
     return None
 
 
 def _top_limit(text: str, default: int) -> int:
     match = re.search(r"\btop\s+(\d+)\b", text, re.IGNORECASE)
     if match:
-        return max(1, min(int(match.group(1)), 45))
+        return max(1, min(int(match.group(1)), len(tools._load_products())))
     words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "ten": 10}
     word_match = re.search(
         r"\btop\s+(one|two|three|four|five|ten)\b", text, re.IGNORECASE

@@ -3,6 +3,8 @@
 import re
 from typing import Any
 
+from catalog_categories import CATEGORY_METADATA
+
 
 class ShoppingSupportAgent:
     """Answer supported help questions without claiming unavailable capabilities."""
@@ -26,8 +28,9 @@ class ShoppingSupportAgent:
                 else ""
             )
             return (
-                "I can search and filter the laptop, smartphone, and headphone "
-                "catalogs; compare listed products; rank products by catalog "
+                "I can search and filter the "
+                + ", ".join(item["label"].lower() for item in CATEGORY_METADATA)
+                + " catalog; compare listed products; rank products by catalog "
                 "ratings; and check whether a bundle fits a combined budget. "
                 "I can't place orders or check live retailer inventory."
                 + follow_up_help
