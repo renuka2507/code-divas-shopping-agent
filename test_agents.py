@@ -233,6 +233,37 @@ class SpecialistAgentTests(unittest.TestCase):
         )
         self.assertTrue(all(event["status"] == "completed" for event in events))
 
+    def test_model_bundle_call_without_user_budget_asks_for_budget_without_execution(self):
+        response = SimpleNamespace(
+            message=SimpleNamespace(
+                content="",
+                tool_calls=[
+                    SimpleNamespace(
+                        function=SimpleNamespace(
+                            name="recommend_bundle",
+                            arguments={
+                                "max_total_price": 30000,
+                                "categories": ["laptop", "smartphone"],
+                            },
+                        )
+                    )
+                ],
+            )
+        )
+        client = Mock()
+        client.chat.return_value = response
+        with patch("agent._execute_specialist_tool") as execute_tool:
+            answer, trace = ShoppingManagerAgent(client).handle(
+                [],
+                "Could you build me a bundle?",
+            )
+
+        self.assertIn("What total budget", answer)
+        self.assertEqual(client.chat.call_count, 1)
+        execute_tool.assert_not_called()
+        self.assertEqual(trace[0]["tool"], "recommend_bundle")
+        self.assertEqual(trace[0]["status"], "skipped")
+
     def test_failed_specialist_records_error_without_marking_it_executed(self):
         with patch("agent.SEARCH_AGENT.filter", side_effect=ValueError("bad filter")):
             answer, trace = run_agent(Mock(), [], "6000 smartwatch")

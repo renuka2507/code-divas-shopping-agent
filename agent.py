@@ -3,6 +3,7 @@
 import inspect
 import json
 import os
+import re
 import types
 from contextvars import ContextVar
 from datetime import datetime, timezone
@@ -51,6 +52,25 @@ _ACTIVE_EXECUTION_EVENTS: ContextVar[list[dict[str, Any]] | None] = ContextVar(
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _has_explicit_bundle_budget(user_text: str) -> bool:
+    """Require both bundle intent and an explicit amount before a bundle tool call."""
+    bundle_requested = bool(
+        re.search(r"\b(?:bundle|combined|total|overall)\b", user_text, re.I)
+    )
+    amount_stated = bool(
+        re.search(
+            r"(?:₹|rs\.?\s*|inr\s*)\d[\d,]*(?:\.\d+)?"
+            r"(?:\s*(?:k|thousand|lakh|lac|l))?"
+            r"|\b(?:under|below|within|up to|budget(?: of)?|total)\s+"
+            r"(?:₹|rs\.?\s*|inr\s*)?\d[\d,]*(?:\.\d+)?\s*(?:k|thousand|lakh|lac|l)?\b"
+            r"|\b\d[\d,]*(?:\.\d+)?\s*(?:k|thousand|lakh|lac|l)?\s*(?:total|budget)\b",
+            user_text,
+            re.I,
+        )
+    )
+    return bundle_requested and amount_stated
 
 
 def _invoke_specialist(
@@ -262,6 +282,8 @@ SYSTEM_PROMPT = (
     "min_battery_hours, and noise-cancelling to noise_cancelling=true. If the user gives a "
     "total budget for a bundle across categories, call recommend_bundle with "
     "max_total_price; do not apply that budget separately as each product's max_price. "
+    "If the user asks for a bundle but gives no total budget, ask for the budget instead "
+    "of choosing one or calling recommend_bundle. "
     "Use get_highest_rated_products for highest-rated or top-rated questions. Use "
     "compare_products for known IDs; otherwise search first. Never invent product facts. "
     "Use only catalog tool results, explain recommendations using their facts, and clearly "
@@ -1203,6 +1225,22 @@ def _run_agent(
                     return (
                         "I couldn't read the catalog tool request. Please rephrase "
                         "your shopping question and try again.",
+                        trace,
+                    )
+                if tool_name == "recommend_bundle" and not _has_explicit_bundle_budget(
+                    user_text
+                ):
+                    trace.append(
+                        {
+                            "tool": tool_name,
+                            "arguments": arguments,
+                            "status": "skipped",
+                            "reason": "The user did not provide an explicit total budget.",
+                        }
+                    )
+                    return (
+                        "What total budget should I use for the bundle? I’ll select "
+                        "catalog products that stay within it.",
                         trace,
                     )
                 cache_key = (

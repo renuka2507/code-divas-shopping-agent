@@ -786,31 +786,20 @@ class OllamaAgentTests(unittest.TestCase):
 
     def test_total_budget_calls_bundle_tool_not_per_product_max_filter(self):
         client = Mock()
-        client.chat.side_effect = [
-            make_response(
-                tool_calls=[
-                    make_tool_call("recommend_bundle", {"max_total_price": 70000})
-                ]
-            ),
-            make_response("The bundle is within your total budget."),
-        ]
         answer, trace = run_agent(
             client,
             [],
-            "Can you help me choose a bundle?",
+            "Can you help me choose a bundle under ₹70,000?",
         )
-        self.assertIn("within your total budget", answer)
+        self.assertIn("Combined total budget", answer)
+        client.chat.assert_not_called()
         self.assertEqual(trace[0]["tool"], "recommend_bundle")
+        self.assertLessEqual(trace[0]["arguments"]["max_total_price"], 70000)
+        self.assertGreater(trace[0]["arguments"]["max_total_price"], 69999)
         self.assertEqual(len(trace[0]["result"]), 3)
         self.assertLessEqual(
             sum(product["price_inr"] for product in trace[0]["result"]),
             70000,
-        )
-        tool_response = client.chat.call_args_list[1].kwargs["messages"][-1]
-        bundle_payload = json.loads(tool_response["content"])
-        self.assertEqual(
-            bundle_payload["total_price_inr"],
-            sum(product["price_inr"] for product in trace[0]["result"]),
         )
 
     def test_duplicate_tool_calls_execute_only_once(self):
